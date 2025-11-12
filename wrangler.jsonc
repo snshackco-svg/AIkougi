@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "aikougi",
+  "compatibility_date": "2025-11-12",
+  "pages_build_output_dir": "./dist",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "aikougi-production",
+      "database_id": "placeholder-will-be-updated-after-creation"
+    }
+  ]
+}
