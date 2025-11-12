@@ -143,7 +143,7 @@ function renderDashboard() {
       </div>
       
       <!-- KPI統計 -->
-      <div class="stats-grid mb-8">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div class="stat-card">
           <div class="flex items-center justify-between">
             <div>
@@ -177,25 +177,22 @@ function renderDashboard() {
         <div class="stat-card">
           <div class="flex items-center justify-between">
             <div>
-              <div class="stat-label">累計削減金額</div>
-              <div class="stat-value">${totalEffect.cost.toFixed(0)}<span class="text-lg text-gray-500">万円</span></div>
-              <div class="text-sm text-gray-500">コスト削減効果</div>
+              <div class="stat-label">開発システム</div>
+              <div class="stat-value">${systems.length}<span class="text-lg text-gray-500">個</span></div>
+              <div class="text-sm text-gray-500">プロジェクト数</div>
             </div>
-            <div class="text-5xl text-green-500 opacity-20">
-              <i class="fas fa-yen-sign"></i>
+            <div class="text-5xl text-purple-500 opacity-20">
+              <i class="fas fa-project-diagram"></i>
             </div>
           </div>
-        </div>
-        
-        <div class="stat-card">
-          <div class="flex items-center justify-between">
-            <div>
-              <div class="stat-label">投資回収率 (ROI)</div>
-              <div class="stat-value">${totalEffect.roi.toFixed(1)}<span class="text-lg text-gray-500">%</span></div>
-              <div class="text-sm text-gray-500">費用対効果</div>
+          <div class="mt-4 pt-3 border-t text-sm">
+            <div class="flex justify-between mb-1">
+              <span class="text-gray-600">開発中:</span>
+              <span class="font-semibold text-yellow-600">${systemsInProgress}</span>
             </div>
-            <div class="text-5xl text-orange-500 opacity-20">
-              <i class="fas fa-chart-line"></i>
+            <div class="flex justify-between">
+              <span class="text-gray-600">稼働中:</span>
+              <span class="font-semibold text-green-600">${systemsCompleted}</span>
             </div>
           </div>
         </div>
@@ -794,38 +791,30 @@ function renderMeasurements(data) {
         <p class="text-gray-600">システム開発による削減効果の可視化</p>
       </div>
       
-      <!-- ROI統計 -->
-      <div class="stats-grid mb-8">
+      <!-- 効果統計 -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <div class="stat-card">
           <div class="stat-label">累計削減時間</div>
           <div class="stat-value">${totalEffect.actual_time.toFixed(1)}<span class="text-lg text-gray-500">h/日</span></div>
-          <div class="text-sm text-gray-500">目標: ${totalEffect.expected_time.toFixed(1)}h/日</div>
-          <div class="progress-bar mt-2">
+          <div class="text-sm text-gray-500 mb-2">目標: ${totalEffect.expected_time.toFixed(1)}h/日</div>
+          <div class="progress-bar">
             <div class="progress-fill bg-teal-500" style="width: ${Math.min((totalEffect.actual_time / totalEffect.expected_time) * 100, 100)}%"></div>
+          </div>
+          <div class="text-xs text-gray-500 mt-2">
+            達成率: ${totalEffect.expected_time > 0 ? Math.round((totalEffect.actual_time / totalEffect.expected_time) * 100) : 0}%
           </div>
         </div>
         
         <div class="stat-card">
           <div class="stat-label">累計削減金額</div>
           <div class="stat-value">${totalEffect.actual_cost.toFixed(0)}<span class="text-lg text-gray-500">万円</span></div>
-          <div class="text-sm text-gray-500">目標: ${totalEffect.expected_cost.toFixed(0)}万円</div>
-          <div class="progress-bar mt-2">
+          <div class="text-sm text-gray-500 mb-2">目標: ${totalEffect.expected_cost.toFixed(0)}万円</div>
+          <div class="progress-bar">
             <div class="progress-fill bg-green-500" style="width: ${Math.min((totalEffect.actual_cost / totalEffect.expected_cost) * 100, 100)}%"></div>
           </div>
-        </div>
-        
-        <div class="stat-card">
-          <div class="stat-label">投資回収率 (ROI)</div>
-          <div class="stat-value">${totalEffect.roi.toFixed(1)}<span class="text-lg text-gray-500">%</span></div>
-          <div class="text-sm ${totalEffect.roi >= 100 ? 'text-green-600' : 'text-orange-600'}">
-            ${totalEffect.roi >= 100 ? '✓ 投資回収済み' : '進行中'}
+          <div class="text-xs text-gray-500 mt-2">
+            達成率: ${totalEffect.expected_cost > 0 ? Math.round((totalEffect.actual_cost / totalEffect.expected_cost) * 100) : 0}%
           </div>
-        </div>
-        
-        <div class="stat-card">
-          <div class="stat-label">契約金額</div>
-          <div class="stat-value">${(totalEffect.contract_amount / 10000).toFixed(0)}<span class="text-lg text-gray-500">万円</span></div>
-          <div class="text-sm text-gray-500">年間プログラム費用</div>
         </div>
       </div>
       
@@ -966,7 +955,7 @@ function renderCompany(company) {
         </div>
       </div>
       
-      <div class="card mb-6">
+      <div class="card">
         <h2 class="text-xl font-bold mb-4">主要な業務課題</h2>
         ${challenges && challenges.length > 0 ? `
           <ul class="space-y-2">
@@ -980,24 +969,6 @@ function renderCompany(company) {
         ` : `
           <p class="text-gray-500">登録されていません</p>
         `}
-      </div>
-      
-      <div class="card">
-        <h2 class="text-xl font-bold mb-4">契約情報</h2>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div>
-            <div class="text-sm text-gray-500 mb-1">契約金額</div>
-            <div class="font-semibold text-2xl text-green-600">${(company.contract_amount / 10000).toFixed(0)}万円</div>
-          </div>
-          <div>
-            <div class="text-sm text-gray-500 mb-1">支払いステータス</div>
-            <div><span class="badge ${company.payment_status === 'paid' ? 'badge-production' : 'badge-development'}">${getPaymentStatusLabel(company.payment_status)}</span></div>
-          </div>
-          <div>
-            <div class="text-sm text-gray-500 mb-1">契約期間</div>
-            <div class="font-semibold">12ヶ月</div>
-          </div>
-        </div>
       </div>
     </div>
   `;
