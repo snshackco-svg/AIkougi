@@ -132,6 +132,10 @@ function renderDashboard() {
   const systemsInProgress = systems.filter(s => s.status === 'development' || s.status === 'testing').length;
   const systemsCompleted = systems.filter(s => s.status === 'production' || s.status === 'operation').length;
   
+  // totalEffectのnullチェック
+  const totalTime = totalEffect?.time || 0;
+  const totalCost = totalEffect?.cost || 0;
+  
   const html = `
     <div class="max-w-7xl mx-auto">
       <div class="mb-8">
@@ -165,7 +169,7 @@ function renderDashboard() {
           <div class="flex items-center justify-between">
             <div>
               <div class="stat-label">累計削減時間</div>
-              <div class="stat-value">${totalEffect.time.toFixed(1)}<span class="text-lg text-gray-500">h/日</span></div>
+              <div class="stat-value">${totalTime.toFixed(1)}<span class="text-lg text-gray-500">h/日</span></div>
               <div class="text-sm text-gray-500">業務効率化</div>
             </div>
             <div class="text-5xl text-teal-500 opacity-20">
