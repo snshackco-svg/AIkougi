@@ -4,9 +4,9 @@
 
 ## 🌐 公開URL
 
+- **本番環境**: https://aikougi.pages.dev ✅
 - **開発環境**: https://3000-ij8wx0or6akhsj3ef7imf-de59bda9.sandbox.novita.ai
 - **GitHub**: https://github.com/snshackco-svg/AIkougi
-- **本番環境**: 未デプロイ（Cloudflare Pages準備中）
 
 ## 📋 プロジェクト概要
 
@@ -189,28 +189,44 @@ npm run db:migrate:prod
 
 ## 📦 本番デプロイ（Cloudflare Pages）
 
-### 前提条件
-1. Cloudflareアカウント作成
-2. Cloudflare API Token取得
-3. D1データベース作成
+### ✅ デプロイ済み
 
-### デプロイ手順
+本番環境はすでにデプロイ済みです：
+- **URL**: https://aikougi.pages.dev
+- **プロジェクト名**: aikougi
+- **D1データベース**: aikougi-production (cf8e5dad-0a18-45fc-9698-321e1bffb1ff)
+
+### 更新デプロイ手順
+
+```bash
+# 1. コードをビルド
+npm run build
+
+# 2. 本番環境にデプロイ
+npx wrangler pages deploy dist --project-name aikougi
+
+# 3. DBマイグレーションが必要な場合
+npm run db:migrate:prod
+```
+
+### 初回デプロイ手順（参考）
 
 ```bash
 # 1. 本番用D1データベース作成
-npm run db:create
+npx wrangler d1 create aikougi-production
 # 出力されたdatabase_idをwrangler.jsoncに設定
 
 # 2. Cloudflare Pagesプロジェクト作成
 npx wrangler pages project create aikougi \
   --production-branch main \
-  --compatibility-date 2024-01-01
+  --compatibility-date 2025-11-12
 
 # 3. 本番DBマイグレーション
 npm run db:migrate:prod
 
-# 4. 本番デプロイ
-npm run deploy
+# 4. 初回デプロイ
+npm run build
+npx wrangler pages deploy dist --project-name aikougi
 ```
 
 ### 環境変数設定
@@ -308,11 +324,12 @@ aikougi/
 
 ## 📝 最近の更新履歴
 
-### 2025-11-12 (v1.0.1)
+### 2025-11-12 (v1.0.1) - 本番リリース ✅
+- **🚀 デプロイ**: Cloudflare Pagesに本番デプロイ完了
 - **修正**: システム作成の制限を解除（12個から無制限へ）
 - **削除**: 期待削減時間・金額フィールドを削除（実績値のみに統一）
 - **改善**: 効果測定画面を簡素化（目標値と達成率を削除）
-- **データベース**: migration 0002を適用
+- **データベース**: D1 production database作成、migration 0002適用
 
 ## 🐛 既知の問題
 
@@ -340,4 +357,4 @@ MIT License
 
 ---
 
-**Last Updated**: 2025-11-12 07:20 UTC (v1.0.1)
+**Last Updated**: 2025-11-12 07:25 UTC (v1.0.1 - 本番リリース ✅)

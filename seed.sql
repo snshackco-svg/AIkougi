@@ -157,19 +157,19 @@ INSERT INTO sessions (company_id, session_number, phase, theme, lesson_content, 
 '2025-12-10 14:00:00', 'scheduled');
 
 -- 12個のシステム開発プロジェクトを挿入
-INSERT INTO systems (company_id, system_number, name, purpose, ai_tools, status, progress, assigned_session, expected_time_reduction, expected_cost_reduction) VALUES
-(1, 1, '見積書自動生成システム', '見積書作成の自動化により営業工数を削減', '["Genspark"]', 'development', 70, 3, 2.0, 300),
-(1, 2, '営業日報自動作成システム', '営業活動の自動記録と報告書生成', '["Genspark"]', 'development', 60, 4, 1.5, 200),
-(1, 3, '在庫管理アラートシステム', '在庫状況の自動監視と通知', '["Genspark", "Slack"]', 'planning', 40, 5, 1.0, 150),
-(1, 4, '問い合わせ自動応答GPT', '顧客問い合わせの自動対応', '["ChatGPT"]', 'planning', 30, 6, 3.0, 400),
-(1, 5, '受注処理自動化システム', '受注から発注までの自動化', '["ChatGPT", "Zapier"]', 'planning', 20, 7, 2.5, 350),
-(1, 6, '契約書レビューシステム', '契約書の自動チェックとリスク検出', '["Claude"]', 'planning', 10, 8, 2.0, 280),
-(1, 7, '会議議事録自動生成', '会議内容の自動文字起こしと要約', '["Claude"]', 'planning', 10, 9, 1.5, 200),
-(1, 8, '競合分析レポート生成', '市場・競合情報の自動収集と分析', '["Gemini"]', 'planning', 0, 10, 2.0, 280),
-(1, 9, '発注先価格監視システム', '仕入先価格の自動監視と通知', '["Comet"]', 'planning', 0, 11, 1.0, 150),
-(1, 10, '発注書自動作成システム', '発注書の自動生成と送信', '["Genspark", "ChatGPT"]', 'planning', 0, 12, 1.5, 200),
-(1, 11, '5AI統合プラットフォーム', '全AIツールを統合した業務プラットフォーム', '["Genspark", "ChatGPT", "Claude", "Gemini", "Comet"]', 'planning', 0, 18, 5.0, 700),
-(1, 12, '全社DX推進システム', '全社的なDX推進を支援する統合システム', '["Genspark", "ChatGPT", "Claude", "Gemini", "Comet"]', 'planning', 0, 22, 10.0, 1500);
+INSERT INTO systems (company_id, system_number, name, purpose, ai_tools, status, progress, assigned_session) VALUES
+(1, 1, '見積書自動生成システム', '見積書作成の自動化により営業工数を削減', '["Genspark"]', 'development', 70, 3),
+(1, 2, '営業日報自動作成システム', '営業活動の自動記録と報告書生成', '["Genspark"]', 'development', 60, 4),
+(1, 3, '在庫管理アラートシステム', '在庫状況の自動監視と通知', '["Genspark", "Slack"]', 'planning', 40, 5),
+(1, 4, '問い合わせ自動応答GPT', '顧客問い合わせの自動対応', '["ChatGPT"]', 'planning', 30, 6),
+(1, 5, '受注処理自動化システム', '受注から発注までの自動化', '["ChatGPT", "Zapier"]', 'planning', 20, 7),
+(1, 6, '契約書レビューシステム', '契約書の自動チェックとリスク検出', '["Claude"]', 'planning', 10, 8),
+(1, 7, '会議議事録自動生成', '会議内容の自動文字起こしと要約', '["Claude"]', 'planning', 10, 9),
+(1, 8, '競合分析レポート生成', '市場・競合情報の自動収集と分析', '["Gemini"]', 'planning', 0, 10),
+(1, 9, '発注先価格監視システム', '仕入先価格の自動監視と通知', '["Comet"]', 'planning', 0, 11),
+(1, 10, '発注書自動作成システム', '発注書の自動生成と送信', '["Genspark", "ChatGPT"]', 'planning', 0, 12),
+(1, 11, '5AI統合プラットフォーム', '全AIツールを統合した業務プラットフォーム', '["Genspark", "ChatGPT", "Claude", "Gemini", "Comet"]', 'planning', 0, 18),
+(1, 12, '全社DX推進システム', '全社的なDX推進を支援する統合システム', '["Genspark", "ChatGPT", "Claude", "Gemini", "Comet"]', 'planning', 0, 22);
 
 -- 効果測定データのサンプル
 INSERT INTO measurements (company_id, system_id, measurement_date, time_reduction, cost_reduction, measurement_method) VALUES
