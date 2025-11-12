@@ -175,12 +175,12 @@ function renderDashboard() {
         <div class="stat-card">
           <div class="flex items-center justify-between">
             <div>
-              <div class="stat-label">累計削減時間</div>
-              <div class="stat-value">${totalTime.toFixed(1)}<span class="text-lg text-gray-500">h/日</span></div>
-              <div class="text-sm text-gray-500">業務効率化</div>
+              <div class="stat-label">月間削減金額</div>
+              <div class="stat-value">${totalCost.toFixed(0)}<span class="text-lg text-gray-500">万円/月</span></div>
+              <div class="text-sm text-gray-500">業務効率化効果</div>
             </div>
             <div class="text-5xl text-teal-500 opacity-20">
-              <i class="fas fa-clock"></i>
+              <i class="fas fa-yen-sign"></i>
             </div>
           </div>
         </div>
@@ -259,52 +259,61 @@ function renderDashboard() {
         </div>
       </div>
       
-      <!-- システム一覧 -->
+      <!-- システム一覧（折りたたみ式） -->
       <div class="card">
-        <h2 class="text-xl font-bold mb-4 flex items-center">
-          <i class="fas fa-list mr-2 text-blue-900"></i>
-          12システム開発プロジェクト
-        </h2>
-        <div class="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th>No.</th>
-                <th>システム名</th>
-                <th>ステータス</th>
-                <th>進捗</th>
-                <th>削減効果</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${systems.map(system => `
-                <tr class="cursor-pointer hover:bg-gray-50" onclick="viewSystem(${system.system_number})">
-                  <td class="font-semibold">${system.system_number}</td>
-                  <td>
-                    <div class="font-medium">${system.name}</div>
-                    <div class="text-sm text-gray-500">${system.purpose || ''}</div>
-                  </td>
-                  <td>
-                    <span class="badge badge-${system.status}">${getStatusLabel(system.status)}</span>
-                  </td>
-                  <td>
-                    <div class="flex items-center">
-                      <div class="progress-bar w-24 mr-2">
-                        <div class="progress-fill" style="width: ${system.progress}%"></div>
-                      </div>
-                      <span class="text-sm font-medium">${system.progress}%</span>
-                    </div>
-                  </td>
-                  <td>
-                    ${system.actual_time_reduction 
-                      ? `<span class="text-green-600 font-medium">${system.actual_time_reduction}h/日</span>` 
-                      : `<span class="text-gray-400">未測定</span>`
-                    }
-                  </td>
+        <button 
+          onclick="toggleSystemList()" 
+          class="w-full flex items-center justify-between text-xl font-bold hover:text-blue-700 transition-colors"
+        >
+          <div class="flex items-center">
+            <i class="fas fa-list mr-2 text-blue-900"></i>
+            システム開発プロジェクト (${systems.length}件)
+          </div>
+          <i id="systemListIcon" class="fas fa-chevron-down text-gray-400"></i>
+        </button>
+        
+        <div id="systemListContent" class="hidden mt-4">
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>No.</th>
+                  <th>システム名</th>
+                  <th>ステータス</th>
+                  <th>進捗</th>
+                  <th>削減効果</th>
                 </tr>
-              `).join('')}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                ${systems.map(system => `
+                  <tr class="cursor-pointer hover:bg-gray-50" onclick="viewSystem(${system.system_number})">
+                    <td class="font-semibold">${system.system_number}</td>
+                    <td>
+                      <div class="font-medium">${system.name}</div>
+                      <div class="text-sm text-gray-500">${system.purpose || ''}</div>
+                    </td>
+                    <td>
+                      <span class="badge badge-${system.status}">${getStatusLabel(system.status)}</span>
+                    </td>
+                    <td>
+                      <div class="flex items-center">
+                        <div class="progress-bar w-24 mr-2">
+                          <div class="progress-fill" style="width: ${system.progress}%"></div>
+                        </div>
+                        <span class="text-sm font-medium">${system.progress}%</span>
+                      </div>
+                    </td>
+                    <td>
+                      ${system.actual_cost_reduction 
+                        ? `<span class="text-green-600 font-medium">${system.actual_cost_reduction}万円/月</span>` 
+                        : `<span class="text-gray-400">未測定</span>`
+                      }
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
@@ -515,16 +524,16 @@ function renderSystemsList(systems) {
             
             <div class="flex items-center justify-between text-sm pt-3 border-t mb-3">
               <div>
-                <div class="text-gray-500">削減効果</div>
-                ${system.actual_time_reduction 
-                  ? `<div class="font-semibold text-green-600">${system.actual_time_reduction}h/日</div>`
+                <div class="text-gray-500">月間削減金額</div>
+                ${system.actual_cost_reduction 
+                  ? `<div class="font-semibold text-green-600">${system.actual_cost_reduction}万円/月</div>`
                   : `<div class="text-gray-400">未測定</div>`
                 }
               </div>
               <div class="text-right">
-                <div class="text-gray-500">削減金額</div>
+                <div class="text-gray-500">年間削減金額</div>
                 ${system.actual_cost_reduction 
-                  ? `<div class="font-semibold text-green-600">${system.actual_cost_reduction}万円</div>`
+                  ? `<div class="font-semibold text-green-600">${(system.actual_cost_reduction * 12).toFixed(0)}万円/年</div>`
                   : `<div class="text-gray-400">未測定</div>`
                 }
               </div>
@@ -619,13 +628,13 @@ function renderSystemsList(systems) {
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label class="block text-sm font-semibold mb-1">実績削減時間（時間/日）</label>
+                <label class="block text-sm font-semibold mb-1">実績削減時間（時間/月）</label>
                 <input type="number" id="actualTime" step="0.1" min="0" value="0"
                   class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
               
               <div>
-                <label class="block text-sm font-semibold mb-1">実績削減金額（万円）</label>
+                <label class="block text-sm font-semibold mb-1">実績削減金額（万円/月）</label>
                 <input type="number" id="actualCost" step="1" min="0" value="0"
                   class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
@@ -684,18 +693,18 @@ function renderMeasurements(data) {
       <!-- 効果統計 -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <div class="stat-card">
-          <div class="stat-label">累計削減時間</div>
-          <div class="stat-value">${(totalEffect?.actual_time || 0).toFixed(1)}<span class="text-lg text-gray-500">h/日</span></div>
+          <div class="stat-label">月間削減金額</div>
+          <div class="stat-value">${(totalEffect?.actual_cost || 0).toFixed(0)}<span class="text-lg text-gray-500">万円/月</span></div>
           <div class="text-sm text-gray-600 mt-2">
-            <i class="fas fa-clock mr-1"></i>全システムの合計削減時間
+            <i class="fas fa-yen-sign mr-1"></i>全システムの合計削減金額（月額）
           </div>
         </div>
         
         <div class="stat-card">
-          <div class="stat-label">累計削減金額</div>
-          <div class="stat-value">${(totalEffect?.actual_cost || 0).toFixed(0)}<span class="text-lg text-gray-500">万円</span></div>
+          <div class="stat-label">年間削減金額</div>
+          <div class="stat-value">${((totalEffect?.actual_cost || 0) * 12).toFixed(0)}<span class="text-lg text-gray-500">万円/年</span></div>
           <div class="text-sm text-gray-600 mt-2">
-            <i class="fas fa-yen-sign mr-1"></i>全システムの合計削減金額
+            <i class="fas fa-chart-line mr-1"></i>全システムの合計削減金額（年額）
           </div>
         </div>
       </div>
@@ -712,7 +721,7 @@ function renderMeasurements(data) {
                 <th>ステータス</th>
                 <th>進捗率</th>
                 <th>削減時間</th>
-                <th>削減金額</th>
+                <th>月間削減額</th>
               </tr>
             </thead>
             <tbody>
@@ -734,13 +743,13 @@ function renderMeasurements(data) {
                     </td>
                     <td>
                       ${system.actual_time_reduction 
-                        ? `<span class="font-semibold text-green-600">${system.actual_time_reduction}h/日</span>` 
+                        ? `<span class="font-semibold text-green-600">${system.actual_time_reduction}h/月</span>` 
                         : `<span class="text-gray-400">-</span>`
                       }
                     </td>
                     <td>
                       ${system.actual_cost_reduction 
-                        ? `<span class="font-semibold text-green-600">${system.actual_cost_reduction}万円</span>` 
+                        ? `<span class="font-semibold text-green-600">${system.actual_cost_reduction}万円/月</span>` 
                         : `<span class="text-gray-400">-</span>`
                       }
                     </td>
@@ -1100,4 +1109,20 @@ async function deleteSystem(systemNumber) {
 
 function viewSystem(systemNumber) {
   showEditSystemModal(systemNumber);
+}
+
+// ダッシュボードのシステムリスト折りたたみトグル
+function toggleSystemList() {
+  const content = document.getElementById('systemListContent');
+  const icon = document.getElementById('systemListIcon');
+  
+  if (content.classList.contains('hidden')) {
+    content.classList.remove('hidden');
+    icon.classList.remove('fa-chevron-down');
+    icon.classList.add('fa-chevron-up');
+  } else {
+    content.classList.add('hidden');
+    icon.classList.remove('fa-chevron-up');
+    icon.classList.add('fa-chevron-down');
+  }
 }
