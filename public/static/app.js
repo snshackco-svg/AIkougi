@@ -176,7 +176,7 @@ function renderDashboard() {
           <div class="flex items-center justify-between">
             <div>
               <div class="stat-label">月間削減金額</div>
-              <div class="stat-value">${totalCost.toFixed(0)}<span class="text-lg text-gray-500">万円/月</span></div>
+              <div class="stat-value">${formatNumber(totalCost.toFixed(0))}<span class="text-lg text-gray-500">万円/月</span></div>
               <div class="text-sm text-gray-500">業務効率化効果</div>
             </div>
             <div class="text-5xl text-teal-500 opacity-20">
@@ -305,7 +305,7 @@ function renderDashboard() {
                     </td>
                     <td>
                       ${system.actual_cost_reduction 
-                        ? `<span class="text-green-600 font-medium">${system.actual_cost_reduction}万円/月</span>` 
+                        ? `<span class="text-green-600 font-medium">${formatNumber(system.actual_cost_reduction)}万円/月</span>` 
                         : `<span class="text-gray-400">未測定</span>`
                       }
                     </td>
@@ -526,14 +526,14 @@ function renderSystemsList(systems) {
               <div>
                 <div class="text-gray-500">月間削減金額</div>
                 ${system.actual_cost_reduction 
-                  ? `<div class="font-semibold text-green-600">${system.actual_cost_reduction}万円/月</div>`
+                  ? `<div class="font-semibold text-green-600">${formatNumber(system.actual_cost_reduction)}万円/月</div>`
                   : `<div class="text-gray-400">未測定</div>`
                 }
               </div>
               <div class="text-right">
                 <div class="text-gray-500">年間削減金額</div>
                 ${system.actual_cost_reduction 
-                  ? `<div class="font-semibold text-green-600">${(system.actual_cost_reduction * 12).toFixed(0)}万円/年</div>`
+                  ? `<div class="font-semibold text-green-600">${formatNumber((system.actual_cost_reduction * 12).toFixed(0))}万円/年</div>`
                   : `<div class="text-gray-400">未測定</div>`
                 }
               </div>
@@ -694,7 +694,7 @@ function renderMeasurements(data) {
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <div class="stat-card">
           <div class="stat-label">月間削減金額</div>
-          <div class="stat-value">${(totalEffect?.actual_cost || 0).toFixed(0)}<span class="text-lg text-gray-500">万円/月</span></div>
+          <div class="stat-value">${formatNumber((totalEffect?.actual_cost || 0).toFixed(0))}<span class="text-lg text-gray-500">万円/月</span></div>
           <div class="text-sm text-gray-600 mt-2">
             <i class="fas fa-yen-sign mr-1"></i>全システムの合計削減金額（月額）
           </div>
@@ -702,7 +702,7 @@ function renderMeasurements(data) {
         
         <div class="stat-card">
           <div class="stat-label">年間削減金額</div>
-          <div class="stat-value">${((totalEffect?.actual_cost || 0) * 12).toFixed(0)}<span class="text-lg text-gray-500">万円/年</span></div>
+          <div class="stat-value">${formatNumber(((totalEffect?.actual_cost || 0) * 12).toFixed(0))}<span class="text-lg text-gray-500">万円/年</span></div>
           <div class="text-sm text-gray-600 mt-2">
             <i class="fas fa-chart-line mr-1"></i>全システムの合計削減金額（年額）
           </div>
@@ -743,13 +743,13 @@ function renderMeasurements(data) {
                     </td>
                     <td>
                       ${system.actual_time_reduction 
-                        ? `<span class="font-semibold text-green-600">${system.actual_time_reduction}h/月</span>` 
+                        ? `<span class="font-semibold text-green-600">${formatNumber(system.actual_time_reduction)}h/月</span>` 
                         : `<span class="text-gray-400">-</span>`
                       }
                     </td>
                     <td>
                       ${system.actual_cost_reduction 
-                        ? `<span class="font-semibold text-green-600">${system.actual_cost_reduction}万円/月</span>` 
+                        ? `<span class="font-semibold text-green-600">${formatNumber(system.actual_cost_reduction)}万円/月</span>` 
                         : `<span class="text-gray-400">-</span>`
                       }
                     </td>
@@ -927,6 +927,12 @@ function safeParseJSON(str) {
   } catch {
     return {};
   }
+}
+
+// 数字にカンマを入れる
+function formatNumber(num) {
+  if (num === null || num === undefined || num === '') return '0';
+  return Number(num).toLocaleString('ja-JP');
 }
 
 function showError(message) {
