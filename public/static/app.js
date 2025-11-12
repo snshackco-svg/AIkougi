@@ -610,20 +610,6 @@ function renderSystemsList(systems) {
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label class="block text-sm font-semibold mb-1">期待削減時間（時間/日）</label>
-                <input type="number" id="expectedTime" step="0.1" min="0" value="0"
-                  class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              </div>
-              
-              <div>
-                <label class="block text-sm font-semibold mb-1">期待削減金額（万円）</label>
-                <input type="number" id="expectedCost" step="1" min="0" value="0"
-                  class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              </div>
-            </div>
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
                 <label class="block text-sm font-semibold mb-1">実績削減時間（時間/日）</label>
                 <input type="number" id="actualTime" step="0.1" min="0" value="0"
                   class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
@@ -723,16 +709,13 @@ function renderMeasurements(data) {
                 <th>No.</th>
                 <th>システム名</th>
                 <th>ステータス</th>
+                <th>進捗率</th>
                 <th>削減時間</th>
                 <th>削減金額</th>
-                <th>達成率</th>
               </tr>
             </thead>
             <tbody>
               ${systemEffects.map(system => {
-                const timeRate = system.expected_time_reduction > 0 
-                  ? Math.round((system.actual_time_reduction / system.expected_time_reduction) * 100)
-                  : 0;
                 return `
                   <tr>
                     <td class="font-semibold">${system.system_number}</td>
@@ -741,22 +724,22 @@ function renderMeasurements(data) {
                     </td>
                     <td><span class="badge badge-${system.status}">${getStatusLabel(system.status)}</span></td>
                     <td>
+                      <div class="flex items-center">
+                        <div class="w-20 bg-gray-200 rounded-full h-2 mr-2">
+                          <div class="bg-blue-500 rounded-full h-2" style="width: ${system.progress}%"></div>
+                        </div>
+                        <span class="text-sm font-medium">${system.progress}%</span>
+                      </div>
+                    </td>
+                    <td>
                       ${system.actual_time_reduction 
                         ? `<span class="font-semibold text-green-600">${system.actual_time_reduction}h/日</span>` 
                         : `<span class="text-gray-400">-</span>`
                       }
-                      <div class="text-xs text-gray-500">目標: ${system.expected_time_reduction}h/日</div>
                     </td>
                     <td>
                       ${system.actual_cost_reduction 
                         ? `<span class="font-semibold text-green-600">${system.actual_cost_reduction}万円</span>` 
-                        : `<span class="text-gray-400">-</span>`
-                      }
-                      <div class="text-xs text-gray-500">目標: ${system.expected_cost_reduction}万円</div>
-                    </td>
-                    <td>
-                      ${timeRate > 0 
-                        ? `<span class="${timeRate >= 100 ? 'text-green-600' : 'text-orange-600'} font-semibold">${timeRate}%</span>`
                         : `<span class="text-gray-400">-</span>`
                       }
                     </td>
@@ -1038,8 +1021,6 @@ async function showEditSystemModal(systemNumber) {
     document.getElementById('systemStatus').value = system.status;
     document.getElementById('systemProgress').value = system.progress;
     document.getElementById('progressValue').textContent = system.progress;
-    document.getElementById('expectedTime').value = system.expected_time_reduction || 0;
-    document.getElementById('expectedCost').value = system.expected_cost_reduction || 0;
     document.getElementById('actualTime').value = system.actual_time_reduction || 0;
     document.getElementById('actualCost').value = system.actual_cost_reduction || 0;
     document.getElementById('systemMemo').value = system.project_memo || '';
@@ -1077,8 +1058,6 @@ async function saveSystem(event) {
     ai_tools: JSON.stringify(selectedAITools),
     status: document.getElementById('systemStatus').value,
     progress: parseInt(document.getElementById('systemProgress').value),
-    expected_time_reduction: parseFloat(document.getElementById('expectedTime').value) || 0,
-    expected_cost_reduction: parseFloat(document.getElementById('expectedCost').value) || 0,
     actual_time_reduction: parseFloat(document.getElementById('actualTime').value) || null,
     actual_cost_reduction: parseFloat(document.getElementById('actualCost').value) || null,
     project_memo: document.getElementById('systemMemo').value

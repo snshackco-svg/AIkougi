@@ -248,13 +248,11 @@ app.post('/api/systems/:companyId', async (c) => {
     const result = await DB.prepare(`
       INSERT INTO systems (
         company_id, system_number, name, purpose, ai_tools, status,
-        progress, assigned_session, expected_time_reduction, expected_cost_reduction,
-        project_memo
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        progress, assigned_session, project_memo
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       companyId, nextNumber, body.name, body.purpose, body.ai_tools || '[]',
       body.status || 'planning', body.progress || 0, body.assigned_session || null,
-      body.expected_time_reduction || 0, body.expected_cost_reduction || 0,
       body.project_memo || ''
     ).run()
 
@@ -276,14 +274,12 @@ app.put('/api/systems/:companyId/:systemNumber', async (c) => {
     await DB.prepare(`
       UPDATE systems SET 
         name = ?, purpose = ?, ai_tools = ?, status = ?,
-        progress = ?, expected_time_reduction = ?, expected_cost_reduction = ?,
-        actual_time_reduction = ?, actual_cost_reduction = ?, project_memo = ?,
+        progress = ?, actual_time_reduction = ?, actual_cost_reduction = ?, project_memo = ?,
         updated_at = datetime('now')
       WHERE company_id = ? AND system_number = ?
     `).bind(
       body.name, body.purpose, body.ai_tools, body.status,
-      body.progress, body.expected_time_reduction, body.expected_cost_reduction,
-      body.actual_time_reduction, body.actual_cost_reduction, body.project_memo,
+      body.progress, body.actual_time_reduction, body.actual_cost_reduction, body.project_memo,
       companyId, systemNumber
     ).run()
 
@@ -320,7 +316,6 @@ app.get('/api/measurements/:companyId', async (c) => {
     const systemEffects = await DB.prepare(`
       SELECT 
         s.system_number, s.name, s.status,
-        s.expected_time_reduction, s.expected_cost_reduction,
         s.actual_time_reduction, s.actual_cost_reduction,
         s.progress
       FROM systems s
@@ -344,9 +339,7 @@ app.get('/api/measurements/:companyId', async (c) => {
     const totalEffect = await DB.prepare(`
       SELECT 
         COALESCE(SUM(actual_time_reduction), 0) as total_time,
-        COALESCE(SUM(actual_cost_reduction), 0) as total_cost,
-        COALESCE(SUM(expected_time_reduction), 0) as expected_time,
-        COALESCE(SUM(expected_cost_reduction), 0) as expected_cost
+        COALESCE(SUM(actual_cost_reduction), 0) as total_cost
       FROM systems WHERE company_id = ?
     `).bind(companyId).first()
 
@@ -362,8 +355,6 @@ app.get('/api/measurements/:companyId', async (c) => {
       totalEffect: {
         actual_time: totalEffect?.total_time || 0,
         actual_cost: totalEffect?.total_cost || 0,
-        expected_time: totalEffect?.expected_time || 0,
-        expected_cost: totalEffect?.expected_cost || 0,
         roi: parseFloat(roi),
         contract_amount: contractAmount
       }
