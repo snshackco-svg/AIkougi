@@ -364,132 +364,6 @@ function renderSessions(sessions) {
         </div>
       </div>
     </div>
-    
-    <!-- セッション編集モーダル -->
-    <div id="sessionModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white rounded-lg p-6 max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="text-2xl font-bold" id="sessionModalTitle">セッション編集</h2>
-          <button onclick="closeSessionModal()" class="text-gray-500 hover:text-gray-700">
-            <i class="fas fa-times text-2xl"></i>
-          </button>
-        </div>
-        
-        <form id="sessionForm" onsubmit="saveSession(event)">
-          <input type="hidden" id="sessionNumber" />
-          
-          <div class="space-y-4">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label class="block text-sm font-semibold mb-1">第○回</label>
-                <input type="text" id="sessionNumberDisplay" disabled
-                  class="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-100" />
-              </div>
-              
-              <div>
-                <label class="block text-sm font-semibold mb-1">Phase</label>
-                <select id="sessionPhase" 
-                  class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option value="1">Phase 1: 個別習得</option>
-                  <option value="2">Phase 2: 統合</option>
-                  <option value="3">Phase 3: マスター</option>
-                </select>
-              </div>
-            </div>
-            
-            <div>
-              <label class="block text-sm font-semibold mb-1">テーマ *</label>
-              <input type="text" id="sessionTheme" required 
-                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="例: Genspark AI Developer完全攻略" />
-            </div>
-            
-            <div>
-              <label class="block text-sm font-semibold mb-1">予定日時</label>
-              <input type="datetime-local" id="sessionDate"
-                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            </div>
-            
-            <div>
-              <label class="block text-sm font-semibold mb-1">ステータス</label>
-              <select id="sessionStatus" 
-                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="scheduled">予定</option>
-                <option value="completed">完了</option>
-                <option value="cancelled">キャンセル</option>
-                <option value="rescheduled">再スケジュール</option>
-              </select>
-            </div>
-            
-            <div class="border-t pt-4">
-              <h3 class="font-bold text-lg mb-3 text-blue-900">
-                <i class="fas fa-book mr-2"></i>授業内容（30分）
-              </h3>
-              
-              <div>
-                <label class="block text-sm font-semibold mb-1">学習目標（1行1項目、改行で複数）</label>
-                <textarea id="lessonObjectives" rows="4"
-                  class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="例:&#10;Genspark基本操作&#10;AI Developer機能&#10;プロジェクト管理"></textarea>
-              </div>
-              
-              <div class="mt-3">
-                <label class="block text-sm font-semibold mb-1">教えるポイント（1行1項目、改行で複数）</label>
-                <textarea id="lessonPoints" rows="3"
-                  class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="例:&#10;コード生成の基礎&#10;デバッグ方法&#10;バージョン管理"></textarea>
-              </div>
-            </div>
-            
-            <div class="border-t pt-4">
-              <h3 class="font-bold text-lg mb-3 text-green-900">
-                <i class="fas fa-code mr-2"></i>開発内容（30分）
-              </h3>
-              
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label class="block text-sm font-semibold mb-1">開発テーマ</label>
-                  <input type="text" id="devTheme"
-                    class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="例: システム1企画" />
-                </div>
-                
-                <div>
-                  <label class="block text-sm font-semibold mb-1">開発目標</label>
-                  <input type="text" id="devGoal"
-                    class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="例: 要件定義完了" />
-                </div>
-              </div>
-              
-              <div class="mt-3">
-                <label class="block text-sm font-semibold mb-1">開発対象</label>
-                <input type="text" id="devTarget"
-                  class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="例: 業務効率化ツール" />
-              </div>
-            </div>
-            
-            <div>
-              <label class="block text-sm font-semibold mb-1">メモ・特記事項</label>
-              <textarea id="sessionNotes" rows="3"
-                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="セッションに関するメモや注意事項"></textarea>
-            </div>
-          </div>
-          
-          <div class="flex gap-3 mt-6">
-            <button type="submit" class="btn btn-primary flex-1">
-              <i class="fas fa-save mr-2"></i>
-              保存
-            </button>
-            <button type="button" onclick="closeSessionModal()" class="btn btn-outline flex-1">
-              キャンセル
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
   `;
   
   document.getElementById('main-content').innerHTML = html;
@@ -501,7 +375,7 @@ function renderSessionTimeline(session) {
   
   return `
     <div class="timeline-item ${session.status === 'completed' ? 'completed' : ''}">
-      <div class="bg-white rounded-lg p-4 border border-gray-200 hover:border-blue-300 transition-colors">
+      <div class="bg-white rounded-lg p-4 border border-gray-200">
         <div class="flex items-start justify-between mb-3">
           <div class="flex-1">
             <h3 class="font-bold text-lg">第${session.session_number}回: ${session.theme}</h3>
@@ -511,11 +385,7 @@ function renderSessionTimeline(session) {
             </div>
           </div>
           <div class="flex items-center gap-2">
-            <span class="badge badge-${session.status}">${getStatusLabel(session.status)}</span>
-            <button onclick="showEditSessionModal(${session.session_number})" 
-              class="text-blue-600 hover:text-blue-800 transition-colors">
-              <i class="fas fa-edit text-lg"></i>
-            </button>
+            ${renderSessionStatusButtons(session)}
           </div>
         </div>
         
@@ -553,6 +423,31 @@ function renderSessionTimeline(session) {
       </div>
     </div>
   `;
+}
+
+function renderSessionStatusButtons(session) {
+  const statuses = [
+    { value: 'scheduled', label: '予定', color: 'gray', icon: 'clock' },
+    { value: 'completed', label: '完了', color: 'green', icon: 'check-circle' },
+    { value: 'cancelled', label: 'キャンセル', color: 'red', icon: 'times-circle' }
+  ];
+  
+  return statuses.map(status => {
+    const isActive = session.status === status.value;
+    return `
+      <button 
+        onclick="updateSessionStatus(${session.session_number}, '${status.value}')"
+        class="px-3 py-1 rounded-lg text-sm font-medium transition-all ${
+          isActive 
+            ? `bg-${status.color}-100 text-${status.color}-700 border-2 border-${status.color}-500` 
+            : 'bg-gray-100 text-gray-500 hover:bg-gray-200 border-2 border-transparent'
+        }"
+        title="${status.label}">
+        <i class="fas fa-${status.icon} mr-1"></i>
+        ${status.label}
+      </button>
+    `;
+  }).join('');
 }
 
 // システム一覧読み込み
@@ -1058,101 +953,67 @@ function showError(message) {
 
 // セッション管理関数
 
-async function showEditSessionModal(sessionNumber) {
+async function updateSessionStatus(sessionNumber, newStatus) {
   try {
+    // 現在のセッション情報を取得
     const response = await axios.get(`/api/sessions/${COMPANY_ID}/${sessionNumber}`);
     const session = response.data;
     
-    document.getElementById('sessionModalTitle').textContent = `第${sessionNumber}回 セッション編集`;
-    document.getElementById('sessionNumber').value = session.session_number;
-    document.getElementById('sessionNumberDisplay').value = `第${session.session_number}回`;
-    document.getElementById('sessionPhase').value = session.phase;
-    document.getElementById('sessionTheme').value = session.theme;
-    document.getElementById('sessionStatus').value = session.status;
-    document.getElementById('sessionNotes').value = session.notes || '';
+    // ステータスのみ更新
+    const data = {
+      scheduled_date: session.scheduled_date,
+      theme: session.theme,
+      lesson_content: session.lesson_content,
+      development_content: session.development_content,
+      status: newStatus,
+      notes: session.notes
+    };
     
-    // 日時の設定
-    if (session.scheduled_date) {
-      const date = new Date(session.scheduled_date);
-      const localDateTime = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
-        .toISOString()
-        .slice(0, 16);
-      document.getElementById('sessionDate').value = localDateTime;
-    }
-    
-    // 授業内容の設定
-    const lessonContent = safeParseJSON(session.lesson_content);
-    if (lessonContent.objectives) {
-      document.getElementById('lessonObjectives').value = lessonContent.objectives.join('\n');
-    }
-    if (lessonContent.points) {
-      document.getElementById('lessonPoints').value = lessonContent.points.join('\n');
-    }
-    
-    // 開発内容の設定
-    const devContent = safeParseJSON(session.development_content);
-    document.getElementById('devTheme').value = devContent.theme || '';
-    document.getElementById('devGoal').value = devContent.goal || '';
-    document.getElementById('devTarget').value = devContent.target || '';
-    
-    document.getElementById('sessionModal').classList.remove('hidden');
-  } catch (error) {
-    console.error('Failed to load session:', error);
-    alert('セッション情報の読み込みに失敗しました');
-  }
-}
-
-function closeSessionModal() {
-  document.getElementById('sessionModal').classList.add('hidden');
-}
-
-async function saveSession(event) {
-  event.preventDefault();
-  
-  const sessionNumber = document.getElementById('sessionNumber').value;
-  
-  // 授業内容をJSON形式に変換
-  const objectives = document.getElementById('lessonObjectives').value
-    .split('\n')
-    .map(line => line.trim())
-    .filter(line => line.length > 0);
-  
-  const points = document.getElementById('lessonPoints').value
-    .split('\n')
-    .map(line => line.trim())
-    .filter(line => line.length > 0);
-  
-  const lessonContent = {
-    objectives: objectives,
-    points: points,
-    duration: 30
-  };
-  
-  // 開発内容をJSON形式に変換
-  const devContent = {
-    theme: document.getElementById('devTheme').value,
-    goal: document.getElementById('devGoal').value,
-    target: document.getElementById('devTarget').value
-  };
-  
-  const data = {
-    scheduled_date: document.getElementById('sessionDate').value || null,
-    theme: document.getElementById('sessionTheme').value,
-    lesson_content: JSON.stringify(lessonContent),
-    development_content: JSON.stringify(devContent),
-    status: document.getElementById('sessionStatus').value,
-    notes: document.getElementById('sessionNotes').value
-  };
-  
-  try {
     await axios.put(`/api/sessions/${COMPANY_ID}/${sessionNumber}`, data);
-    alert('セッション情報を更新しました');
-    closeSessionModal();
+    
+    // 成功通知（控えめに）
+    const statusLabel = {
+      'scheduled': '予定',
+      'completed': '完了',
+      'cancelled': 'キャンセル'
+    }[newStatus];
+    
+    // ページをリロードせずに表示を更新
     await loadSessions();
+    
+    // 小さな成功メッセージ
+    showToast(`第${sessionNumber}回を「${statusLabel}」に変更しました`);
   } catch (error) {
-    console.error('Failed to save session:', error);
-    alert('セッションの保存に失敗しました');
+    console.error('Failed to update session status:', error);
+    alert('ステータスの更新に失敗しました');
   }
+}
+
+function showToast(message) {
+  // 既存のトーストがあれば削除
+  const existingToast = document.getElementById('toast');
+  if (existingToast) {
+    existingToast.remove();
+  }
+  
+  // トーストを作成
+  const toast = document.createElement('div');
+  toast.id = 'toast';
+  toast.className = 'fixed bottom-4 right-4 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-fade-in';
+  toast.innerHTML = `
+    <div class="flex items-center gap-2">
+      <i class="fas fa-check-circle"></i>
+      <span>${message}</span>
+    </div>
+  `;
+  document.body.appendChild(toast);
+  
+  // 3秒後に削除
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transition = 'opacity 0.3s';
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
 }
 
 // システム管理関数
