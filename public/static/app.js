@@ -332,46 +332,80 @@ function renderSessions(sessions) {
   
   const html = `
     <div class="max-w-7xl mx-auto">
-      <div class="mb-8 flex items-center justify-between">
-        <div>
-          <h1 class="text-3xl font-bold text-gray-900 mb-2">
-            <i class="fas fa-calendar-alt mr-3 text-blue-900"></i>
-            24回講義スケジュール
-          </h1>
-          <p class="text-gray-600">マルチAI統合エンジニア養成プログラム（企業別カスタマイズ可能）</p>
-        </div>
+      <div class="mb-6">
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">
+          <i class="fas fa-calendar-alt mr-3 text-blue-900"></i>
+          24回講義スケジュール
+        </h1>
+        <p class="text-gray-600">マルチAI統合エンジニア養成プログラム</p>
       </div>
       
       <!-- Phase 1: 個別習得 -->
-      <div class="card mb-6 phase-1">
-        <h2 class="text-2xl font-bold mb-4 text-blue-600">
+      <div class="card mb-4">
+        <h2 class="text-xl font-bold mb-3 text-blue-600 flex items-center">
           <i class="fas fa-layer-group mr-2"></i>
           Phase 1: 個別習得 (第1-12回)
         </h2>
-        <div class="timeline">
-          ${phase1.map(session => renderSessionTimeline(session)).join('')}
+        <div class="table-container">
+          <table class="text-sm">
+            <thead>
+              <tr>
+                <th class="w-16">No.</th>
+                <th class="w-32">日程</th>
+                <th>テーマ</th>
+                <th class="w-48">ステータス</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${phase1.map(session => renderSessionRow(session)).join('')}
+            </tbody>
+          </table>
         </div>
       </div>
       
       <!-- Phase 2: 統合 -->
-      <div class="card mb-6 phase-2">
-        <h2 class="text-2xl font-bold mb-4 text-purple-600">
+      <div class="card mb-4">
+        <h2 class="text-xl font-bold mb-3 text-purple-600 flex items-center">
           <i class="fas fa-layer-group mr-2"></i>
           Phase 2: 統合 (第13-18回)
         </h2>
-        <div class="timeline">
-          ${phase2.map(session => renderSessionTimeline(session)).join('')}
+        <div class="table-container">
+          <table class="text-sm">
+            <thead>
+              <tr>
+                <th class="w-16">No.</th>
+                <th class="w-32">日程</th>
+                <th>テーマ</th>
+                <th class="w-48">ステータス</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${phase2.map(session => renderSessionRow(session)).join('')}
+            </tbody>
+          </table>
         </div>
       </div>
       
       <!-- Phase 3: マスター -->
-      <div class="card mb-6 phase-3">
-        <h2 class="text-2xl font-bold mb-4 text-pink-600">
+      <div class="card mb-4">
+        <h2 class="text-xl font-bold mb-3 text-pink-600 flex items-center">
           <i class="fas fa-layer-group mr-2"></i>
           Phase 3: マスター (第19-24回)
         </h2>
-        <div class="timeline">
-          ${phase3.map(session => renderSessionTimeline(session)).join('')}
+        <div class="table-container">
+          <table class="text-sm">
+            <thead>
+              <tr>
+                <th class="w-16">No.</th>
+                <th class="w-32">日程</th>
+                <th>テーマ</th>
+                <th class="w-48">ステータス</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${phase3.map(session => renderSessionRow(session)).join('')}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -380,59 +414,23 @@ function renderSessions(sessions) {
   document.getElementById('main-content').innerHTML = html;
 }
 
-function renderSessionTimeline(session) {
-  const lessonContent = safeParseJSON(session.lesson_content);
-  const devContent = safeParseJSON(session.development_content);
+function renderSessionRow(session) {
+  const date = new Date(session.scheduled_date);
+  const dateStr = `${date.getMonth() + 1}/${date.getDate()}`;
   
   return `
-    <div class="timeline-item ${session.status === 'completed' ? 'completed' : ''}">
-      <div class="bg-white rounded-lg p-4 border border-gray-200">
-        <div class="flex items-start justify-between mb-3">
-          <div class="flex-1">
-            <h3 class="font-bold text-lg">第${session.session_number}回: ${session.theme}</h3>
-            <div class="text-sm text-gray-500 mt-1">
-              <i class="far fa-calendar mr-1"></i>
-              ${formatDateTime(session.scheduled_date)}
-            </div>
-          </div>
-          <div class="flex items-center gap-2">
-            ${renderSessionStatusButtons(session)}
-          </div>
+    <tr class="${session.status === 'completed' ? 'bg-green-50' : ''}">
+      <td class="font-semibold text-center">${session.session_number}</td>
+      <td class="text-gray-600">${dateStr}</td>
+      <td>
+        <div class="font-medium">${session.theme}</div>
+      </td>
+      <td>
+        <div class="flex items-center gap-1 flex-wrap">
+          ${renderSessionStatusButtons(session)}
         </div>
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
-          <div class="bg-blue-50 p-3 rounded-lg">
-            <div class="font-semibold text-blue-900 mb-2">
-              <i class="fas fa-book mr-1"></i>授業内容 (30分)
-            </div>
-            ${lessonContent.objectives ? `
-              <ul class="text-sm space-y-1">
-                ${lessonContent.objectives.map(obj => `<li class="text-gray-700">• ${obj}</li>`).join('')}
-              </ul>
-            ` : '<p class="text-sm text-gray-500">内容未設定</p>'}
-          </div>
-          
-          <div class="bg-green-50 p-3 rounded-lg">
-            <div class="font-semibold text-green-900 mb-2">
-              <i class="fas fa-code mr-1"></i>開発内容 (30分)
-            </div>
-            <div class="text-sm text-gray-700">
-              <div><strong>テーマ:</strong> ${devContent.theme || '未設定'}</div>
-              <div><strong>目標:</strong> ${devContent.goal || '未設定'}</div>
-            </div>
-          </div>
-        </div>
-        
-        ${session.notes ? `
-          <div class="mt-3 p-3 bg-yellow-50 rounded-lg">
-            <div class="font-semibold text-yellow-900 mb-1 text-sm">
-              <i class="fas fa-sticky-note mr-1"></i>メモ
-            </div>
-            <p class="text-sm text-gray-700">${session.notes}</p>
-          </div>
-        ` : ''}
-      </div>
-    </div>
+      </td>
+    </tr>
   `;
 }
 
@@ -448,14 +446,14 @@ function renderSessionStatusButtons(session) {
     return `
       <button 
         onclick="updateSessionStatus(${session.session_number}, '${status.value}')"
-        class="px-3 py-1 rounded-lg text-sm font-medium transition-all ${
+        class="px-2 py-0.5 rounded text-xs font-medium transition-all ${
           isActive 
-            ? `bg-${status.color}-100 text-${status.color}-700 border-2 border-${status.color}-500` 
-            : 'bg-gray-100 text-gray-500 hover:bg-gray-200 border-2 border-transparent'
+            ? `bg-${status.color}-100 text-${status.color}-700 border border-${status.color}-400` 
+            : 'bg-gray-100 text-gray-500 hover:bg-gray-200 border border-transparent'
         }"
         title="${status.label}">
-        <i class="fas fa-${status.icon} mr-1"></i>
-        ${status.label}
+        <i class="fas fa-${status.icon}"></i>
+        <span class="ml-1">${status.label}</span>
       </button>
     `;
   }).join('');
