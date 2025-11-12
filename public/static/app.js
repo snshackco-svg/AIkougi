@@ -687,25 +687,17 @@ function renderMeasurements(data) {
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <div class="stat-card">
           <div class="stat-label">累計削減時間</div>
-          <div class="stat-value">${totalEffect.actual_time.toFixed(1)}<span class="text-lg text-gray-500">h/日</span></div>
-          <div class="text-sm text-gray-500 mb-2">目標: ${totalEffect.expected_time.toFixed(1)}h/日</div>
-          <div class="progress-bar">
-            <div class="progress-fill bg-teal-500" style="width: ${Math.min((totalEffect.actual_time / totalEffect.expected_time) * 100, 100)}%"></div>
-          </div>
-          <div class="text-xs text-gray-500 mt-2">
-            達成率: ${totalEffect.expected_time > 0 ? Math.round((totalEffect.actual_time / totalEffect.expected_time) * 100) : 0}%
+          <div class="stat-value">${(totalEffect?.actual_time || 0).toFixed(1)}<span class="text-lg text-gray-500">h/日</span></div>
+          <div class="text-sm text-gray-600 mt-2">
+            <i class="fas fa-clock mr-1"></i>全システムの合計削減時間
           </div>
         </div>
         
         <div class="stat-card">
           <div class="stat-label">累計削減金額</div>
-          <div class="stat-value">${totalEffect.actual_cost.toFixed(0)}<span class="text-lg text-gray-500">万円</span></div>
-          <div class="text-sm text-gray-500 mb-2">目標: ${totalEffect.expected_cost.toFixed(0)}万円</div>
-          <div class="progress-bar">
-            <div class="progress-fill bg-green-500" style="width: ${Math.min((totalEffect.actual_cost / totalEffect.expected_cost) * 100, 100)}%"></div>
-          </div>
-          <div class="text-xs text-gray-500 mt-2">
-            達成率: ${totalEffect.expected_cost > 0 ? Math.round((totalEffect.actual_cost / totalEffect.expected_cost) * 100) : 0}%
+          <div class="stat-value">${(totalEffect?.actual_cost || 0).toFixed(0)}<span class="text-lg text-gray-500">万円</span></div>
+          <div class="text-sm text-gray-600 mt-2">
+            <i class="fas fa-yen-sign mr-1"></i>全システムの合計削減金額
           </div>
         </div>
       </div>
