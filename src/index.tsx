@@ -231,6 +231,40 @@ app.get('/api/systems/:companyId/:systemNumber', async (c) => {
   }
 })
 
+// システム追加
+app.post('/api/systems/:companyId', async (c) => {
+  const { DB } = c.env
+  const companyId = c.req.param('companyId')
+  const body = await c.req.json()
+
+  try {
+    // 最大のsystem_numberを取得
+    const maxNumber = await DB.prepare(`
+      SELECT MAX(system_number) as max_num FROM systems WHERE company_id = ?
+    `).bind(companyId).first()
+    
+    const nextNumber = (maxNumber?.max_num || 0) + 1
+
+    const result = await DB.prepare(`
+      INSERT INTO systems (
+        company_id, system_number, name, purpose, ai_tools, status,
+        progress, assigned_session, expected_time_reduction, expected_cost_reduction,
+        project_memo
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      companyId, nextNumber, body.name, body.purpose, body.ai_tools || '[]',
+      body.status || 'planning', body.progress || 0, body.assigned_session || null,
+      body.expected_time_reduction || 0, body.expected_cost_reduction || 0,
+      body.project_memo || ''
+    ).run()
+
+    return c.json({ success: true, id: result.meta.last_row_id, system_number: nextNumber })
+  } catch (error) {
+    console.error('Failed to create system:', error)
+    return c.json({ error: 'Failed to create system' }, 500)
+  }
+})
+
 // システム更新
 app.put('/api/systems/:companyId/:systemNumber', async (c) => {
   const { DB } = c.env
@@ -256,6 +290,23 @@ app.put('/api/systems/:companyId/:systemNumber', async (c) => {
     return c.json({ success: true })
   } catch (error) {
     return c.json({ error: 'Failed to update system' }, 500)
+  }
+})
+
+// システム削除
+app.delete('/api/systems/:companyId/:systemNumber', async (c) => {
+  const { DB } = c.env
+  const companyId = c.req.param('companyId')
+  const systemNumber = c.req.param('systemNumber')
+
+  try {
+    await DB.prepare(`
+      DELETE FROM systems WHERE company_id = ? AND system_number = ?
+    `).bind(companyId, systemNumber).run()
+
+    return c.json({ success: true })
+  } catch (error) {
+    return c.json({ error: 'Failed to delete system' }, 500)
   }
 })
 

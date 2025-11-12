@@ -430,22 +430,30 @@ async function loadSystems() {
 function renderSystemsList(systems) {
   const html = `
     <div class="max-w-7xl mx-auto">
-      <div class="mb-8">
-        <h1 class="text-3xl font-bold text-gray-900 mb-2">
-          <i class="fas fa-project-diagram mr-3 text-blue-900"></i>
-          12システム開発プロジェクト
-        </h1>
-        <p class="text-gray-600">各社カスタマイズ開発システム一覧</p>
+      <div class="mb-8 flex items-center justify-between">
+        <div>
+          <h1 class="text-3xl font-bold text-gray-900 mb-2">
+            <i class="fas fa-project-diagram mr-3 text-blue-900"></i>
+            システム開発プロジェクト
+          </h1>
+          <p class="text-gray-600">各社カスタマイズ開発システム一覧（${systems.length}個）</p>
+        </div>
+        <button onclick="showAddSystemModal()" class="btn btn-primary">
+          <i class="fas fa-plus mr-2"></i>
+          新規システム追加
+        </button>
       </div>
       
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         ${systems.map(system => `
-          <div class="card cursor-pointer" onclick="viewSystem(${system.system_number})">
+          <div class="card">
             <div class="flex items-start justify-between mb-3">
               <div class="text-3xl font-bold text-gray-300">
                 ${system.system_number}
               </div>
-              <span class="badge badge-${system.status}">${getStatusLabel(system.status)}</span>
+              <div class="flex gap-2">
+                <span class="badge badge-${system.status}">${getStatusLabel(system.status)}</span>
+              </div>
             </div>
             
             <h3 class="font-bold text-lg mb-2">${system.name}</h3>
@@ -461,7 +469,7 @@ function renderSystemsList(systems) {
               </div>
             </div>
             
-            <div class="flex items-center justify-between text-sm pt-3 border-t">
+            <div class="flex items-center justify-between text-sm pt-3 border-t mb-3">
               <div>
                 <div class="text-gray-500">削減効果</div>
                 ${system.actual_time_reduction 
@@ -477,8 +485,140 @@ function renderSystemsList(systems) {
                 }
               </div>
             </div>
+            
+            <div class="flex gap-2">
+              <button onclick="showEditSystemModal(${system.system_number})" class="btn btn-outline flex-1 text-sm py-2">
+                <i class="fas fa-edit mr-1"></i>編集
+              </button>
+              <button onclick="deleteSystem(${system.system_number})" class="btn btn-outline text-sm py-2 text-red-600 border-red-600 hover:bg-red-50">
+                <i class="fas fa-trash mr-1"></i>削除
+              </button>
+            </div>
           </div>
         `).join('')}
+      </div>
+    </div>
+    
+    <!-- システム追加/編集モーダル -->
+    <div id="systemModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-2xl font-bold" id="modalTitle">システム追加</h2>
+          <button onclick="closeSystemModal()" class="text-gray-500 hover:text-gray-700">
+            <i class="fas fa-times text-2xl"></i>
+          </button>
+        </div>
+        
+        <form id="systemForm" onsubmit="saveSystem(event)">
+          <input type="hidden" id="systemNumber" />
+          
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-semibold mb-1">システム名 *</label>
+              <input type="text" id="systemName" required 
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="例: 見積書自動生成システム" />
+            </div>
+            
+            <div>
+              <label class="block text-sm font-semibold mb-1">目的・解決する課題 *</label>
+              <textarea id="systemPurpose" required rows="3"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="例: 見積書作成の自動化により営業工数を削減"></textarea>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-semibold mb-1">使用AIツール</label>
+                <div class="space-y-2">
+                  <label class="flex items-center">
+                    <input type="checkbox" class="ai-tool-checkbox" value="Genspark" />
+                    <span class="ml-2">Genspark</span>
+                  </label>
+                  <label class="flex items-center">
+                    <input type="checkbox" class="ai-tool-checkbox" value="ChatGPT" />
+                    <span class="ml-2">ChatGPT</span>
+                  </label>
+                  <label class="flex items-center">
+                    <input type="checkbox" class="ai-tool-checkbox" value="Claude" />
+                    <span class="ml-2">Claude</span>
+                  </label>
+                  <label class="flex items-center">
+                    <input type="checkbox" class="ai-tool-checkbox" value="Gemini" />
+                    <span class="ml-2">Gemini</span>
+                  </label>
+                  <label class="flex items-center">
+                    <input type="checkbox" class="ai-tool-checkbox" value="Comet" />
+                    <span class="ml-2">Comet</span>
+                  </label>
+                </div>
+              </div>
+              
+              <div>
+                <label class="block text-sm font-semibold mb-1">ステータス</label>
+                <select id="systemStatus" 
+                  class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="planning">企画中</option>
+                  <option value="development">開発中</option>
+                  <option value="testing">テスト中</option>
+                  <option value="production">本番稼働</option>
+                  <option value="operation">運用中</option>
+                </select>
+              </div>
+            </div>
+            
+            <div>
+              <label class="block text-sm font-semibold mb-1">進捗率: <span id="progressValue">0</span>%</label>
+              <input type="range" id="systemProgress" min="0" max="100" value="0" 
+                class="w-full" oninput="document.getElementById('progressValue').textContent = this.value" />
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-semibold mb-1">期待削減時間（時間/日）</label>
+                <input type="number" id="expectedTime" step="0.1" min="0" value="0"
+                  class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              
+              <div>
+                <label class="block text-sm font-semibold mb-1">期待削減金額（万円）</label>
+                <input type="number" id="expectedCost" step="1" min="0" value="0"
+                  class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-semibold mb-1">実績削減時間（時間/日）</label>
+                <input type="number" id="actualTime" step="0.1" min="0" value="0"
+                  class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              
+              <div>
+                <label class="block text-sm font-semibold mb-1">実績削減金額（万円）</label>
+                <input type="number" id="actualCost" step="1" min="0" value="0"
+                  class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+            </div>
+            
+            <div>
+              <label class="block text-sm font-semibold mb-1">メモ</label>
+              <textarea id="systemMemo" rows="3"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="開発メモや特記事項"></textarea>
+            </div>
+          </div>
+          
+          <div class="flex gap-3 mt-6">
+            <button type="submit" class="btn btn-primary flex-1">
+              <i class="fas fa-save mr-2"></i>
+              保存
+            </button>
+            <button type="button" onclick="closeSystemModal()" class="btn btn-outline flex-1">
+              キャンセル
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   `;
@@ -802,6 +942,108 @@ function showError(message) {
   `;
 }
 
+// システム管理関数
+
+function showAddSystemModal() {
+  document.getElementById('modalTitle').textContent = '新規システム追加';
+  document.getElementById('systemForm').reset();
+  document.getElementById('systemNumber').value = '';
+  document.getElementById('progressValue').textContent = '0';
+  document.getElementById('systemModal').classList.remove('hidden');
+}
+
+async function showEditSystemModal(systemNumber) {
+  try {
+    const response = await axios.get(`/api/systems/${COMPANY_ID}/${systemNumber}`);
+    const system = response.data.system;
+    
+    document.getElementById('modalTitle').textContent = 'システム編集';
+    document.getElementById('systemNumber').value = system.system_number;
+    document.getElementById('systemName').value = system.name;
+    document.getElementById('systemPurpose').value = system.purpose || '';
+    document.getElementById('systemStatus').value = system.status;
+    document.getElementById('systemProgress').value = system.progress;
+    document.getElementById('progressValue').textContent = system.progress;
+    document.getElementById('expectedTime').value = system.expected_time_reduction || 0;
+    document.getElementById('expectedCost').value = system.expected_cost_reduction || 0;
+    document.getElementById('actualTime').value = system.actual_time_reduction || 0;
+    document.getElementById('actualCost').value = system.actual_cost_reduction || 0;
+    document.getElementById('systemMemo').value = system.project_memo || '';
+    
+    // AIツールのチェックボックスを設定
+    const aiTools = safeParseJSON(system.ai_tools);
+    document.querySelectorAll('.ai-tool-checkbox').forEach(checkbox => {
+      checkbox.checked = aiTools.includes(checkbox.value);
+    });
+    
+    document.getElementById('systemModal').classList.remove('hidden');
+  } catch (error) {
+    console.error('Failed to load system:', error);
+    alert('システム情報の読み込みに失敗しました');
+  }
+}
+
+function closeSystemModal() {
+  document.getElementById('systemModal').classList.add('hidden');
+}
+
+async function saveSystem(event) {
+  event.preventDefault();
+  
+  const systemNumber = document.getElementById('systemNumber').value;
+  const isEdit = systemNumber !== '';
+  
+  // 選択されたAIツールを配列にする
+  const selectedAITools = Array.from(document.querySelectorAll('.ai-tool-checkbox:checked'))
+    .map(cb => cb.value);
+  
+  const data = {
+    name: document.getElementById('systemName').value,
+    purpose: document.getElementById('systemPurpose').value,
+    ai_tools: JSON.stringify(selectedAITools),
+    status: document.getElementById('systemStatus').value,
+    progress: parseInt(document.getElementById('systemProgress').value),
+    expected_time_reduction: parseFloat(document.getElementById('expectedTime').value) || 0,
+    expected_cost_reduction: parseFloat(document.getElementById('expectedCost').value) || 0,
+    actual_time_reduction: parseFloat(document.getElementById('actualTime').value) || null,
+    actual_cost_reduction: parseFloat(document.getElementById('actualCost').value) || null,
+    project_memo: document.getElementById('systemMemo').value
+  };
+  
+  try {
+    if (isEdit) {
+      // 更新
+      await axios.put(`/api/systems/${COMPANY_ID}/${systemNumber}`, data);
+      alert('システム情報を更新しました');
+    } else {
+      // 新規追加
+      await axios.post(`/api/systems/${COMPANY_ID}`, data);
+      alert('新しいシステムを追加しました');
+    }
+    
+    closeSystemModal();
+    await loadSystems();
+  } catch (error) {
+    console.error('Failed to save system:', error);
+    alert('システムの保存に失敗しました');
+  }
+}
+
+async function deleteSystem(systemNumber) {
+  if (!confirm(`システム ${systemNumber} を削除してもよろしいですか？\nこの操作は取り消せません。`)) {
+    return;
+  }
+  
+  try {
+    await axios.delete(`/api/systems/${COMPANY_ID}/${systemNumber}`);
+    alert('システムを削除しました');
+    await loadSystems();
+  } catch (error) {
+    console.error('Failed to delete system:', error);
+    alert('システムの削除に失敗しました');
+  }
+}
+
 function viewSystem(systemNumber) {
-  alert(`システム${systemNumber}の詳細ページは次のフェーズで実装予定です`);
+  showEditSystemModal(systemNumber);
 }
