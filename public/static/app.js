@@ -125,6 +125,13 @@ async function loadDashboard() {
 function renderDashboard() {
   const { company, sessionStats, nextSession, systems, totalEffect } = dashboardData;
   
+  // すべてのデータのnullチェック
+  if (!company || !sessionStats || !systems) {
+    console.error('Dashboard data is incomplete:', dashboardData);
+    showError('ダッシュボードデータの取得に失敗しました');
+    return;
+  }
+  
   const completionRate = sessionStats.total > 0 
     ? Math.round((sessionStats.completed / sessionStats.total) * 100) 
     : 0;
