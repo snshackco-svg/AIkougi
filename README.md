@@ -134,6 +134,17 @@
 - Node.js 18+
 - npm または yarn
 - PM2（ローカル開発用）
+- Wrangler CLI（Cloudflare）
+
+### 環境構成
+
+| 環境 | データベース | 用途 |
+|------|------------|------|
+| **ローカル** | aikougi-development (local) | ローカル開発・テスト |
+| **開発環境** | aikougi-development (remote) | リモート開発・検証 |
+| **本番環境** | aikougi-production (remote) | 顧客利用 |
+
+📖 **詳細なデプロイ手順は [DEPLOYMENT.md](./DEPLOYMENT.md) を参照してください**
 
 ### インストール
 
@@ -145,11 +156,8 @@ cd AIkougi
 # 依存関係をインストール
 npm install
 
-# D1データベースのマイグレーション（ローカル）
-npm run db:migrate:local
-
-# シードデータを投入
-npm run db:seed
+# ローカル開発環境のセットアップ（開発用DBを使用）
+npm run db:reset:local
 ```
 
 ### ローカル開発
@@ -158,7 +166,7 @@ npm run db:seed
 # ビルド
 npm run build
 
-# PM2で開発サーバー起動
+# PM2で開発サーバー起動（開発用DBを使用）
 pm2 start ecosystem.config.cjs
 
 # サービス確認
@@ -167,74 +175,121 @@ npm test
 curl http://localhost:3000
 
 # ログ確認
-pm2 logs aikougi --nostream
+pm2 logs aikougi-dev --nostream
 
 # サービス停止
-pm2 stop aikougi
-pm2 delete aikougi
+pm2 stop aikougi-dev
+pm2 delete aikougi-dev
 ```
 
 ### データベース操作
 
 ```bash
-# ローカルDBをリセット
-npm run db:reset
+# ローカル開発環境
+npm run db:reset:local        # DBリセット+マイグレーション+シード
+npm run db:migrate:local      # マイグレーションのみ
+npm run db:seed:local         # シードデータ投入
+npm run db:console:local      # DBコンソール
 
-# ローカルDBコンソール
-npm run db:console:local
+# リモート開発環境
+npm run db:migrate:dev        # マイグレーション適用
+npm run db:console:dev        # DBコンソール
 
-# 本番DBマイグレーション（デプロイ時）
-npm run db:migrate:prod
+# 本番環境（慎重に！）
+npm run backup:prod           # バックアップ作成
+npm run db:migrate:check      # マイグレーション確認
+npm run db:migrate:prod       # マイグレーション適用
+npm run db:console:prod       # DBコンソール
 ```
 
 ## 📦 本番デプロイ（Cloudflare Pages）
 
-### ✅ デプロイ済み
+### ✅ デプロイ済み環境
 
-本番環境はすでにデプロイ済みです：
-- **URL**: https://aikougi.pages.dev
+- **本番環境**: https://aikougi.pages.dev
 - **プロジェクト名**: aikougi
-- **D1データベース**: aikougi-production (cf8e5dad-0a18-45fc-9698-321e1bffb1ff)
+- **本番DB**: aikougi-production (cf8e5dad-0a18-45fc-9698-321e1bffb1ff)
+- **開発DB**: aikougi-development (7309601f-8a81-49d7-813b-9a0e6fc17030)
 
-### 更新デプロイ手順
+### 🚀 安全なデプロイ手順（推奨）
 
 ```bash
-# 1. コードをビルド
-npm run build
+# 完全自動デプロイ（バックアップ→マイグレーション→ビルド→デプロイ）
+npm run deploy:prod
+```
 
-# 2. 本番環境にデプロイ
-npx wrangler pages deploy dist --project-name aikougi
+このコマンドは以下を自動実行します：
+1. ✅ 本番データベースの自動バックアップ（`backups/` に保存）
+2. ✅ データベースマイグレーションの安全な適用
+3. ✅ アプリケーションのビルド
+4. ✅ Cloudflare Pagesへのデプロイ
 
-# 3. DBマイグレーションが必要な場合
+**既存の顧客データは完全に保持されます！**
+
+### 📝 手動デプロイ手順
+
+```bash
+# Step 1: バックアップ（必須）
+npm run backup:prod
+
+# Step 2: マイグレーション確認
+npm run db:migrate:check
+
+# Step 3: マイグレーション適用
 npm run db:migrate:prod
-```
 
-### 初回デプロイ手順（参考）
-
-```bash
-# 1. 本番用D1データベース作成
-npx wrangler d1 create aikougi-production
-# 出力されたdatabase_idをwrangler.jsoncに設定
-
-# 2. Cloudflare Pagesプロジェクト作成
-npx wrangler pages project create aikougi \
-  --production-branch main \
-  --compatibility-date 2025-11-12
-
-# 3. 本番DBマイグレーション
-npm run db:migrate:prod
-
-# 4. 初回デプロイ
+# Step 4: ビルドとデプロイ
 npm run build
-npx wrangler pages deploy dist --project-name aikougi
+npx wrangler pages deploy dist --project-name aikougi --branch main
 ```
 
-### 環境変数設定
+### 開発環境へのデプロイ
 
 ```bash
-# 本番環境にシークレットを設定
-npx wrangler pages secret put API_KEY --project-name aikougi
+# 開発環境にデプロイ（バックアップ不要）
+npm run deploy:dev
 ```
+
+### 🔐 環境変数設定
+
+```bash
+# 本番環境シークレット（Cloudflareダッシュボードで設定推奨）
+npx wrangler pages secret put SESSION_SECRET --project-name aikougi
+
+# ローカル開発用（.dev.vars ファイル）
+# .dev.vars ファイルを編集してください
+```
+
+### 💾 バックアップとリストア
+
+```bash
+# バックアップ作成
+npm run backup:prod
+
+# バックアップファイルは backups/ ディレクトリに保存されます
+# 例: backups/aikougi-production_20250113_143022.sql
+
+# リストア（緊急時）
+npx wrangler d1 execute aikougi-production --remote \
+  --file=./backups/aikougi-production_YYYYMMDD_HHMMSS.sql
+```
+
+### 🔍 デプロイ前チェックリスト
+
+- [ ] ローカルでビルドが成功する（`npm run build`）
+- [ ] マイグレーション内容を確認（`npm run db:migrate:check`）
+- [ ] 変更内容をGitにコミット
+- [ ] バックアップが自動実行されることを確認
+- [ ] デプロイは営業時間外に実施（推奨）
+
+### 🛟 トラブルシューティング
+
+デプロイで問題が発生した場合：
+
+1. **バックアップを確認**: `ls -lt backups/`
+2. **バックアップから復元**: 上記のリストア手順を参照
+3. **詳細なログを確認**: `pm2 logs aikougi-dev --err`
+4. **[DEPLOYMENT.md](./DEPLOYMENT.md) を参照**
 
 ## 📁 プロジェクト構造
 
@@ -324,6 +379,28 @@ aikougi/
 
 ## 📝 最近の更新履歴
 
+### 2025-11-13 (v1.2.0) - 環境分離と安全なデプロイ ✅
+- **🏗️ 環境分離**: 開発環境と本番環境の完全分離
+- **💾 自動バックアップ**: デプロイ前の本番DBバックアップ機能
+- **🔒 データ保護**: 既存顧客データを保持したままデプロイ可能
+- **📝 ドキュメント**: DEPLOYMENT.md追加（詳細な環境管理手順）
+- **🛠️ スクリプト整備**: 安全なデプロイフロー自動化
+  - `npm run deploy:prod` - 完全自動デプロイ
+  - `npm run backup:prod` - 手動バックアップ
+  - `npm run db:migrate:check` - マイグレーション検証
+- **データベース**: aikougi-development作成（開発用）
+
+### 2025-11-12 (v1.1.0) - 管理者機能追加 ✅
+- **👑 認証システム**: Cookie-based認証、bcryptパスワードハッシュ
+- **👥 ユーザー管理**: 管理者によるユーザーCRUD操作
+- **🏢 企業管理**: 新規企業追加、削除、有効/無効切り替え
+- **📊 統計ダッシュボード**: システム全体の統計と分析
+- **📜 活動ログ**: 全ユーザーの活動履歴追跡
+- **⏱️ セッション管理**: アクティブセッション表示、強制ログアウト
+- **📥 データエクスポート**: CSV形式でのデータダウンロード
+- **⚙️ システム設定**: 設定値の管理画面
+- **データベース**: migration 0003, 0004適用
+
 ### 2025-11-12 (v1.0.1) - 本番リリース ✅
 - **🚀 デプロイ**: Cloudflare Pagesに本番デプロイ完了
 - **修正**: システム作成の制限を解除（12個から無制限へ）
@@ -357,4 +434,4 @@ MIT License
 
 ---
 
-**Last Updated**: 2025-11-12 07:25 UTC (v1.0.1 - 本番リリース ✅)
+**Last Updated**: 2025-11-13 07:00 UTC (v1.2.0 - 環境分離と安全なデプロイ ✅)
