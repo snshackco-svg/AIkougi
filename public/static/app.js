@@ -184,6 +184,9 @@ async function navigateTo(view) {
     case 'company':
       await loadCompany();
       break;
+    case 'users':
+      await loadUsers();
+      break;
     default:
       await loadDashboard();
   }
@@ -223,6 +226,15 @@ function renderSidebar() {
           <i class="fas fa-building"></i>
           <span>企業プロフィール</span>
         </a>
+        ${currentUser?.role === 'admin' ? `
+        <div class="px-4 py-2 mt-4 border-t border-gray-200">
+          <div class="text-xs text-gray-500 mb-2">管理者メニュー</div>
+        </div>
+        <a href="#users">
+          <i class="fas fa-users-cog"></i>
+          <span>ユーザー管理</span>
+        </a>
+        ` : ''}
       </nav>
       
       <div class="p-6 border-t border-gray-200 mt-auto">
@@ -250,6 +262,30 @@ function renderSidebar() {
   `;
   
   appDiv.innerHTML = html;
+}
+
+// ユーザー管理読み込み（管理者のみ）
+async function loadUsers() {
+  if (currentUser?.role !== 'admin') {
+    showError('管理者権限が必要です');
+    return;
+  }
+  
+  try {
+    const [usersResponse, companiesResponse] = await Promise.all([
+      axios.get('/api/admin/users'),
+      axios.get('/api/admin/companies')
+    ]);
+    
+    renderUsers(usersResponse.data, companiesResponse.data);
+  } catch (error) {
+    console.error('Failed to load users:', error);
+    if (error.response?.status === 401) {
+      window.location.reload();
+    } else {
+      showError('ユーザー情報の読み込みに失敗しました');
+    }
+  }
 }
 
 // ダッシュボード読み込み
@@ -1300,5 +1336,242 @@ function toggleSystemList() {
     content.classList.add('hidden');
     icon.classList.remove('fa-chevron-up');
     icon.classList.add('fa-chevron-down');
+  }
+}
+
+// ============================
+// ユーザー管理機能（管理者専用）
+// ============================
+
+function renderUsers(users, companies) {
+  const html = `
+    <div class="max-w-7xl mx-auto">
+      <div class="mb-8 flex items-center justify-between">
+        <div>
+          <h1 class="text-3xl font-bold text-gray-900 mb-2">
+            <i class="fas fa-users-cog mr-3 text-blue-900"></i>
+            ユーザー管理
+          </h1>
+          <p class="text-gray-600">システム利用ユーザーの追加・編集・削除（${users.length}名）</p>
+        </div>
+        <button onclick="showAddUserModal()" class="btn btn-primary">
+          <i class="fas fa-user-plus mr-2"></i>
+          新規ユーザー追加
+        </button>
+      </div>
+      
+      <div class="card">
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>ユーザー名</th>
+                <th>企業</th>
+                <th>ロール</th>
+                <th>状態</th>
+                <th>最終ログイン</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${users.map(user => `
+                <tr>
+                  <td class="font-semibold">${user.id}</td>
+                  <td>
+                    <div class="font-medium">${user.username}</div>
+                  </td>
+                  <td>${user.company_name || '-'}</td>
+                  <td>
+                    ${user.role === 'admin' 
+                      ? '<span class="badge badge-production"><i class="fas fa-crown mr-1"></i>管理者</span>'
+                      : '<span class="badge badge-development">一般</span>'
+                    }
+                  </td>
+                  <td>
+                    ${user.is_active 
+                      ? '<span class="badge badge-completed">有効</span>'
+                      : '<span class="badge badge-cancelled">無効</span>'
+                    }
+                  </td>
+                  <td class="text-sm text-gray-600">${user.last_login ? formatDateTime(user.last_login) : '未ログイン'}</td>
+                  <td>
+                    <div class="flex gap-2">
+                      <button 
+                        onclick="showEditUserModal(${user.id})" 
+                        class="btn btn-outline text-sm py-1 px-3">
+                        <i class="fas fa-edit"></i>
+                      </button>
+                      <button 
+                        onclick="deleteUser(${user.id}, '${user.username}')" 
+                        class="btn btn-outline text-sm py-1 px-3 text-red-600 border-red-600 hover:bg-red-50">
+                        <i class="fas fa-trash"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    
+    <!-- ユーザー追加/編集モーダル -->
+    <div id="userModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-2xl font-bold" id="userModalTitle">ユーザー追加</h2>
+          <button onclick="closeUserModal()" class="text-gray-500 hover:text-gray-700">
+            <i class="fas fa-times text-2xl"></i>
+          </button>
+        </div>
+        
+        <form id="userForm" onsubmit="saveUser(event)">
+          <input type="hidden" id="userId" />
+          
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-semibold mb-1">ユーザー名 *</label>
+              <input type="text" id="userUsername" required 
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="username" />
+            </div>
+            
+            <div>
+              <label class="block text-sm font-semibold mb-1">パスワード <span id="passwordNote" class="text-xs text-gray-500">(編集時は空欄で変更なし)</span></label>
+              <input type="password" id="userPassword" 
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="password123" />
+            </div>
+            
+            <div>
+              <label class="block text-sm font-semibold mb-1">企業 *</label>
+              <select id="userCompanyId" required
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">選択してください</option>
+                ${companies.map(company => `
+                  <option value="${company.id}">${company.name}</option>
+                `).join('')}
+              </select>
+            </div>
+            
+            <div>
+              <label class="block text-sm font-semibold mb-1">ロール *</label>
+              <select id="userRole" required
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="user">一般ユーザー</option>
+                <option value="admin">管理者</option>
+              </select>
+            </div>
+            
+            <div>
+              <label class="flex items-center">
+                <input type="checkbox" id="userIsActive" checked class="mr-2" />
+                <span class="text-sm font-semibold">アカウントを有効化</span>
+              </label>
+            </div>
+          </div>
+          
+          <div class="flex gap-3 mt-6">
+            <button type="submit" class="btn btn-primary flex-1">
+              <i class="fas fa-save mr-2"></i>
+              保存
+            </button>
+            <button type="button" onclick="closeUserModal()" class="btn btn-outline flex-1">
+              キャンセル
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+  
+  document.getElementById('main-content').innerHTML = html;
+  
+  // モーダルデータを保存（後で使用）
+  window.usersData = users;
+  window.companiesData = companies;
+}
+
+function showAddUserModal() {
+  document.getElementById('userModalTitle').textContent = '新規ユーザー追加';
+  document.getElementById('userForm').reset();
+  document.getElementById('userId').value = '';
+  document.getElementById('userPassword').required = true;
+  document.getElementById('passwordNote').textContent = '';
+  document.getElementById('userModal').classList.remove('hidden');
+}
+
+async function showEditUserModal(userId) {
+  const user = window.usersData.find(u => u.id === userId);
+  if (!user) return;
+  
+  document.getElementById('userModalTitle').textContent = 'ユーザー編集';
+  document.getElementById('userId').value = user.id;
+  document.getElementById('userUsername').value = user.username;
+  document.getElementById('userPassword').value = '';
+  document.getElementById('userPassword').required = false;
+  document.getElementById('userCompanyId').value = user.company_id;
+  document.getElementById('userRole').value = user.role;
+  document.getElementById('userIsActive').checked = user.is_active === 1;
+  document.getElementById('passwordNote').textContent = '(編集時は空欄で変更なし)';
+  
+  document.getElementById('userModal').classList.remove('hidden');
+}
+
+function closeUserModal() {
+  document.getElementById('userModal').classList.add('hidden');
+}
+
+async function saveUser(event) {
+  event.preventDefault();
+  
+  const userId = document.getElementById('userId').value;
+  const isEdit = userId !== '';
+  
+  const data = {
+    username: document.getElementById('userUsername').value,
+    password: document.getElementById('userPassword').value || undefined,
+    company_id: parseInt(document.getElementById('userCompanyId').value),
+    role: document.getElementById('userRole').value,
+    is_active: document.getElementById('userIsActive').checked ? 1 : 0
+  };
+  
+  // 新規作成時はパスワード必須
+  if (!isEdit && !data.password) {
+    alert('パスワードを入力してください');
+    return;
+  }
+  
+  try {
+    if (isEdit) {
+      await axios.put(`/api/admin/users/${userId}`, data);
+      alert('ユーザー情報を更新しました');
+    } else {
+      await axios.post('/api/admin/users', data);
+      alert('新しいユーザーを追加しました');
+    }
+    
+    closeUserModal();
+    await loadUsers();
+  } catch (error) {
+    console.error('Failed to save user:', error);
+    alert(error.response?.data?.error || 'ユーザーの保存に失敗しました');
+  }
+}
+
+async function deleteUser(userId, username) {
+  if (!confirm(`ユーザー「${username}」を削除してもよろしいですか？\nこの操作は取り消せません。`)) {
+    return;
+  }
+  
+  try {
+    await axios.delete(`/api/admin/users/${userId}`);
+    alert('ユーザーを削除しました');
+    await loadUsers();
+  } catch (error) {
+    console.error('Failed to delete user:', error);
+    alert('ユーザーの削除に失敗しました');
   }
 }

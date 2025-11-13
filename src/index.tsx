@@ -596,6 +596,135 @@ app.post('/api/measurements/:companyId', requireAuth, async (c) => {
 })
 
 // ============================
+// ユーザー管理API（管理者専用）
+// ============================
+
+// ユーザー一覧取得（管理者のみ）
+app.get('/api/admin/users', requireAuth, requireAdmin, async (c) => {
+  const { DB } = c.env
+  
+  try {
+    const users = await DB.prepare(`
+      SELECT u.id, u.username, u.company_id, u.role, u.is_active, 
+             u.created_at, u.last_login, c.name as company_name
+      FROM users u
+      LEFT JOIN companies c ON u.company_id = c.id
+      ORDER BY u.created_at DESC
+    `).all()
+    
+    return c.json(users.results)
+  } catch (error) {
+    console.error('Failed to fetch users:', error)
+    return c.json({ error: 'Failed to fetch users' }, 500)
+  }
+})
+
+// ユーザー作成（管理者のみ）
+app.post('/api/admin/users', requireAuth, requireAdmin, async (c) => {
+  const { DB } = c.env
+  const body = await c.req.json()
+  
+  try {
+    // パスワードハッシュ化
+    const { hashPassword } = await import('./auth')
+    const passwordHash = await hashPassword(body.password)
+    
+    const result = await DB.prepare(`
+      INSERT INTO users (username, password_hash, company_id, role, is_active)
+      VALUES (?, ?, ?, ?, ?)
+    `).bind(
+      body.username,
+      passwordHash,
+      body.company_id,
+      body.role || 'user',
+      body.is_active !== undefined ? body.is_active : 1
+    ).run()
+    
+    return c.json({ success: true, id: result.meta.last_row_id })
+  } catch (error) {
+    console.error('Failed to create user:', error)
+    return c.json({ error: 'Failed to create user' }, 500)
+  }
+})
+
+// ユーザー更新（管理者のみ）
+app.put('/api/admin/users/:id', requireAuth, requireAdmin, async (c) => {
+  const { DB } = c.env
+  const userId = c.req.param('id')
+  const body = await c.req.json()
+  
+  try {
+    // パスワードが指定されている場合のみハッシュ化
+    if (body.password) {
+      const { hashPassword } = await import('./auth')
+      const passwordHash = await hashPassword(body.password)
+      
+      await DB.prepare(`
+        UPDATE users SET 
+          username = ?, password_hash = ?, company_id = ?, 
+          role = ?, is_active = ?
+        WHERE id = ?
+      `).bind(
+        body.username,
+        passwordHash,
+        body.company_id,
+        body.role,
+        body.is_active,
+        userId
+      ).run()
+    } else {
+      // パスワード変更なし
+      await DB.prepare(`
+        UPDATE users SET 
+          username = ?, company_id = ?, role = ?, is_active = ?
+        WHERE id = ?
+      `).bind(
+        body.username,
+        body.company_id,
+        body.role,
+        body.is_active,
+        userId
+      ).run()
+    }
+    
+    return c.json({ success: true })
+  } catch (error) {
+    console.error('Failed to update user:', error)
+    return c.json({ error: 'Failed to update user' }, 500)
+  }
+})
+
+// ユーザー削除（管理者のみ）
+app.delete('/api/admin/users/:id', requireAuth, requireAdmin, async (c) => {
+  const { DB } = c.env
+  const userId = c.req.param('id')
+  
+  try {
+    await DB.prepare('DELETE FROM users WHERE id = ?').bind(userId).run()
+    return c.json({ success: true })
+  } catch (error) {
+    console.error('Failed to delete user:', error)
+    return c.json({ error: 'Failed to delete user' }, 500)
+  }
+})
+
+// 企業一覧取得（ユーザー作成時に使用）
+app.get('/api/admin/companies', requireAuth, requireAdmin, async (c) => {
+  const { DB } = c.env
+  
+  try {
+    const companies = await DB.prepare(`
+      SELECT id, name FROM companies ORDER BY name ASC
+    `).all()
+    
+    return c.json(companies.results)
+  } catch (error) {
+    console.error('Failed to fetch companies:', error)
+    return c.json({ error: 'Failed to fetch companies' }, 500)
+  }
+})
+
+// ============================
 // Frontend Routes
 // ============================
 
