@@ -1,6 +1,7 @@
 // AIkougi フロントエンドアプリケーション
 
-const COMPANY_ID = 1; // デモ用に固定（本番では認証後に設定）
+// グローバル状態
+let currentUser = null;
 let currentView = 'dashboard';
 let dashboardData = null;
 
@@ -10,6 +11,16 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function initializeApp() {
+  // セッションチェック
+  const authenticated = await checkSession();
+  
+  if (!authenticated) {
+    // 未認証の場合はログイン画面を表示
+    showLoginScreen();
+    return;
+  }
+  
+  // 認証済みの場合は通常のアプリを表示
   renderSidebar();
   await loadDashboard();
   
@@ -18,9 +29,131 @@ async function initializeApp() {
   handleRouteChange();
 }
 
+// セッションチェック
+async function checkSession() {
+  try {
+    const response = await axios.get('/api/auth/session');
+    if (response.data.authenticated) {
+      currentUser = response.data.user;
+      return true;
+    }
+    return false;
+  } catch (error) {
+    return false;
+  }
+}
+
 function handleRouteChange() {
   const hash = window.location.hash.slice(1) || 'dashboard';
   navigateTo(hash);
+}
+
+// ログイン画面を表示
+function showLoginScreen() {
+  const appDiv = document.getElementById('app');
+  
+  const html = `
+    <div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+        <div class="text-center mb-8">
+          <div class="inline-block bg-blue-900 text-white p-4 rounded-full mb-4">
+            <i class="fas fa-graduation-cap text-4xl"></i>
+          </div>
+          <h1 class="text-3xl font-bold text-gray-900 mb-2">AIkougi</h1>
+          <p class="text-gray-600">マルチAI統合エンジニア養成プログラム</p>
+        </div>
+        
+        <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-6">
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-2">
+              <i class="fas fa-user mr-2"></i>ユーザー名
+            </label>
+            <input 
+              type="text" 
+              id="username" 
+              required
+              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="ユーザー名を入力"
+            />
+          </div>
+          
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-2">
+              <i class="fas fa-lock mr-2"></i>パスワード
+            </label>
+            <input 
+              type="password" 
+              id="password" 
+              required
+              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="パスワードを入力"
+            />
+          </div>
+          
+          <div id="loginError" class="hidden bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+            <i class="fas fa-exclamation-circle mr-2"></i>
+            <span id="loginErrorMessage"></span>
+          </div>
+          
+          <button 
+            type="submit" 
+            class="w-full bg-blue-900 text-white py-3 rounded-lg font-semibold hover:bg-blue-800 transition-colors flex items-center justify-center">
+            <i class="fas fa-sign-in-alt mr-2"></i>
+            ログイン
+          </button>
+        </form>
+        
+        <div class="mt-6 pt-6 border-t border-gray-200">
+          <p class="text-xs text-gray-500 text-center">
+            <i class="fas fa-info-circle mr-1"></i>
+            テストアカウント: admin / password123
+          </p>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  appDiv.innerHTML = html;
+}
+
+// ログイン処理
+async function handleLogin(event) {
+  event.preventDefault();
+  
+  const username = document.getElementById('username').value;
+  const password = document.getElementById('password').value;
+  const errorDiv = document.getElementById('loginError');
+  const errorMessage = document.getElementById('loginErrorMessage');
+  
+  try {
+    const response = await axios.post('/api/auth/login', {
+      username,
+      password
+    });
+    
+    if (response.data.success) {
+      currentUser = response.data.user;
+      // ログイン成功 - アプリを再初期化
+      window.location.reload();
+    }
+  } catch (error) {
+    // エラー表示
+    errorDiv.classList.remove('hidden');
+    errorMessage.textContent = error.response?.data?.error || 'ログインに失敗しました';
+  }
+}
+
+// ログアウト処理
+async function handleLogout() {
+  try {
+    await axios.post('/api/auth/logout');
+    // ログアウト成功 - ページをリロード
+    window.location.reload();
+  } catch (error) {
+    console.error('Logout error:', error);
+    // エラーでもリロードして安全側に倒す
+    window.location.reload();
+  }
 }
 
 async function navigateTo(view) {
@@ -93,10 +226,19 @@ function renderSidebar() {
       </nav>
       
       <div class="p-6 border-t border-gray-200 mt-auto">
-        <div class="text-xs text-gray-500">
-          <i class="fas fa-info-circle mr-1"></i>
-          システムバージョン 1.0
+        <div class="mb-4 p-3 bg-blue-50 rounded-lg">
+          <div class="text-xs text-gray-500 mb-1">ログイン中</div>
+          <div class="font-semibold text-sm text-gray-900">
+            <i class="fas fa-user mr-2"></i>${currentUser?.username || 'ユーザー'}
+          </div>
+          ${currentUser?.role === 'admin' ? '<div class="text-xs text-blue-600 mt-1"><i class="fas fa-crown mr-1"></i>管理者</div>' : ''}
         </div>
+        <button 
+          onclick="handleLogout()" 
+          class="w-full bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors">
+          <i class="fas fa-sign-out-alt mr-2"></i>
+          ログアウト
+        </button>
       </div>
     </div>
     
@@ -113,12 +255,18 @@ function renderSidebar() {
 // ダッシュボード読み込み
 async function loadDashboard() {
   try {
-    const response = await axios.get(`/api/dashboard/${COMPANY_ID}`);
+    const companyId = currentUser?.companyId || 1;
+    const response = await axios.get(`/api/dashboard/${companyId}`);
     dashboardData = response.data;
     renderDashboard();
   } catch (error) {
     console.error('Failed to load dashboard:', error);
-    showError('ダッシュボードの読み込みに失敗しました');
+    if (error.response?.status === 401) {
+      // 認証エラーの場合はログイン画面へ
+      window.location.reload();
+    } else {
+      showError('ダッシュボードの読み込みに失敗しました');
+    }
   }
 }
 
@@ -325,12 +473,17 @@ function renderDashboard() {
 // セッション一覧読み込み
 async function loadSessions() {
   try {
-    const response = await axios.get(`/api/sessions/${COMPANY_ID}`);
+    const companyId = currentUser?.companyId || 1;
+    const response = await axios.get(`/api/sessions/${companyId}`);
     const sessions = response.data;
     renderSessions(sessions);
   } catch (error) {
     console.error('Failed to load sessions:', error);
-    showError('セッションの読み込みに失敗しました');
+    if (error.response?.status === 401) {
+      window.location.reload();
+    } else {
+      showError('セッションの読み込みに失敗しました');
+    }
   }
 }
 
@@ -471,12 +624,17 @@ function renderSessionStatusButtons(session) {
 // システム一覧読み込み
 async function loadSystems() {
   try {
-    const response = await axios.get(`/api/systems/${COMPANY_ID}`);
+    const companyId = currentUser?.companyId || 1;
+    const response = await axios.get(`/api/systems/${companyId}`);
     const systems = response.data;
     renderSystemsList(systems);
   } catch (error) {
     console.error('Failed to load systems:', error);
-    showError('システムの読み込みに失敗しました');
+    if (error.response?.status === 401) {
+      window.location.reload();
+    } else {
+      showError('システムの読み込みに失敗しました');
+    }
   }
 }
 
@@ -668,12 +826,17 @@ function renderSystemsList(systems) {
 // 効果測定読み込み
 async function loadMeasurements() {
   try {
-    const response = await axios.get(`/api/measurements/${COMPANY_ID}`);
+    const companyId = currentUser?.companyId || 1;
+    const response = await axios.get(`/api/measurements/${companyId}`);
     const data = response.data;
     renderMeasurements(data);
   } catch (error) {
     console.error('Failed to load measurements:', error);
-    showError('効果測定データの読み込みに失敗しました');
+    if (error.response?.status === 401) {
+      window.location.reload();
+    } else {
+      showError('効果測定データの読み込みに失敗しました');
+    }
   }
 }
 
@@ -769,12 +932,17 @@ function renderMeasurements(data) {
 // 企業情報読み込み
 async function loadCompany() {
   try {
-    const response = await axios.get(`/api/companies/${COMPANY_ID}`);
+    const companyId = currentUser?.companyId || 1;
+    const response = await axios.get(`/api/companies/${companyId}`);
     const company = response.data;
     renderCompany(company);
   } catch (error) {
     console.error('Failed to load company:', error);
-    showError('企業情報の読み込みに失敗しました');
+    if (error.response?.status === 401) {
+      window.location.reload();
+    } else {
+      showError('企業情報の読み込みに失敗しました');
+    }
   }
 }
 
@@ -954,8 +1122,9 @@ function showError(message) {
 
 async function updateSessionStatus(sessionNumber, newStatus) {
   try {
+    const companyId = currentUser?.companyId || 1;
     // 現在のセッション情報を取得
-    const response = await axios.get(`/api/sessions/${COMPANY_ID}/${sessionNumber}`);
+    const response = await axios.get(`/api/sessions/${companyId}/${sessionNumber}`);
     const session = response.data;
     
     // ステータスのみ更新
@@ -1027,7 +1196,8 @@ function showAddSystemModal() {
 
 async function showEditSystemModal(systemNumber) {
   try {
-    const response = await axios.get(`/api/systems/${COMPANY_ID}/${systemNumber}`);
+    const companyId = currentUser?.companyId || 1;
+    const response = await axios.get(`/api/systems/${companyId}/${systemNumber}`);
     const system = response.data.system;
     
     document.getElementById('modalTitle').textContent = 'システム編集';

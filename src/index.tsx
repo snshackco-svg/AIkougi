@@ -1,7 +1,15 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { serveStatic } from 'hono/cloudflare-workers'
+import { getCookie, setCookie, deleteCookie } from 'hono/cookie'
 import { renderer } from './renderer'
+import { 
+  validateSession, 
+  createSession, 
+  deleteSession, 
+  verifyPassword,
+  cleanupExpiredSessions 
+} from './auth'
 
 type Bindings = {
   DB: D1Database
@@ -9,8 +17,11 @@ type Bindings = {
 
 const app = new Hono<{ Bindings: Bindings }>()
 
-// CORS設定
-app.use('/api/*', cors())
+// CORS設定（認証用にcredentials対応）
+app.use('/api/*', cors({
+  origin: '*',
+  credentials: true
+}))
 
 // 静的ファイル配信
 app.use('/static/*', serveStatic({ root: './' }))
@@ -19,13 +30,161 @@ app.use('/static/*', serveStatic({ root: './' }))
 app.use(renderer)
 
 // ============================
-// API Routes
+// 認証ミドルウェア
 // ============================
 
-// ダッシュボードデータ取得
-app.get('/api/dashboard/:companyId', async (c) => {
+// 認証が必要なルートに適用
+async function requireAuth(c: any, next: any) {
+  const sessionId = getCookie(c, 'session_id')
+  
+  if (!sessionId) {
+    return c.json({ error: 'Unauthorized', requireLogin: true }, 401)
+  }
+  
+  const session = await validateSession(c.env.DB, sessionId)
+  
+  if (!session) {
+    deleteCookie(c, 'session_id')
+    return c.json({ error: 'Invalid session', requireLogin: true }, 401)
+  }
+  
+  // セッション情報をコンテキストに保存
+  c.set('user', {
+    id: session.user_id,
+    username: session.username,
+    role: session.role,
+    companyId: session.company_id
+  })
+  
+  await next()
+}
+
+// 管理者権限が必要なルートに適用
+async function requireAdmin(c: any, next: any) {
+  const user = c.get('user')
+  
+  if (!user || user.role !== 'admin') {
+    return c.json({ error: 'Forbidden: Admin access required' }, 403)
+  }
+  
+  await next()
+}
+
+// ============================
+// 認証API Routes
+// ============================
+
+// ログイン
+app.post('/api/auth/login', async (c) => {
+  const { DB } = c.env
+  const { username, password } = await c.req.json()
+  
+  try {
+    // ユーザー検索
+    const user = await DB.prepare(`
+      SELECT * FROM users WHERE username = ? AND is_active = 1
+    `).bind(username).first() as any
+    
+    if (!user) {
+      return c.json({ error: 'Invalid username or password' }, 401)
+    }
+    
+    // パスワード検証
+    const isValid = await verifyPassword(password, user.password_hash)
+    
+    if (!isValid) {
+      return c.json({ error: 'Invalid username or password' }, 401)
+    }
+    
+    // セッション作成
+    const sessionId = await createSession(DB, user.id, user.company_id)
+    
+    // 最終ログイン時刻を更新
+    await DB.prepare(`
+      UPDATE users SET last_login = datetime('now') WHERE id = ?
+    `).bind(user.id).run()
+    
+    // Cookieにセッションを保存（7日間有効）
+    setCookie(c, 'session_id', sessionId, {
+      maxAge: 7 * 24 * 60 * 60, // 7 days
+      httpOnly: true,
+      secure: true,
+      sameSite: 'Lax',
+      path: '/'
+    })
+    
+    // 古いセッションをクリーンアップ
+    await cleanupExpiredSessions(DB)
+    
+    return c.json({
+      success: true,
+      user: {
+        id: user.id,
+        username: user.username,
+        role: user.role,
+        companyId: user.company_id
+      }
+    })
+  } catch (error) {
+    console.error('Login error:', error)
+    return c.json({ error: 'Login failed' }, 500)
+  }
+})
+
+// ログアウト
+app.post('/api/auth/logout', async (c) => {
+  const { DB } = c.env
+  const sessionId = getCookie(c, 'session_id')
+  
+  if (sessionId) {
+    await deleteSession(DB, sessionId)
+    deleteCookie(c, 'session_id')
+  }
+  
+  return c.json({ success: true })
+})
+
+// セッション確認
+app.get('/api/auth/session', async (c) => {
+  const { DB } = c.env
+  const sessionId = getCookie(c, 'session_id')
+  
+  if (!sessionId) {
+    return c.json({ authenticated: false }, 401)
+  }
+  
+  const session = await validateSession(DB, sessionId)
+  
+  if (!session) {
+    deleteCookie(c, 'session_id')
+    return c.json({ authenticated: false }, 401)
+  }
+  
+  return c.json({
+    authenticated: true,
+    user: {
+      id: session.user_id,
+      username: session.username,
+      role: session.role,
+      companyId: session.company_id
+    }
+  })
+})
+
+// ============================
+// API Routes (認証保護)
+// ============================
+
+// ダッシュボードデータ取得（認証必須）
+app.get('/api/dashboard/:companyId', requireAuth, async (c) => {
   const { DB } = c.env
   const companyId = c.req.param('companyId')
+  const user = c.get('user')
+  
+  // 自社のデータのみアクセス可能（管理者は全企業可能）
+  if (user.role !== 'admin' && user.companyId !== parseInt(companyId)) {
+    return c.json({ error: 'Forbidden: Cannot access other company data' }, 403)
+  }
 
   try {
     // 企業情報
@@ -81,10 +240,16 @@ app.get('/api/dashboard/:companyId', async (c) => {
   }
 })
 
-// 企業情報取得
-app.get('/api/companies/:id', async (c) => {
+// 企業情報取得（認証必須）
+app.get('/api/companies/:id', requireAuth, async (c) => {
   const { DB } = c.env
   const id = c.req.param('id')
+  const user = c.get('user')
+  
+  // 自社のデータのみアクセス可能（管理者は全企業可能）
+  if (user.role !== 'admin' && user.companyId !== parseInt(id)) {
+    return c.json({ error: 'Forbidden: Cannot access other company data' }, 403)
+  }
 
   try {
     const company = await DB.prepare('SELECT * FROM companies WHERE id = ?').bind(id).first()
@@ -98,9 +263,13 @@ app.get('/api/companies/:id', async (c) => {
 })
 
 // 企業情報更新
-app.put('/api/companies/:id', async (c) => {
-  const { DB } = c.env
+app.put('/api/companies/:id', requireAuth, async (c) => {
+  const user = c.get('user')
   const id = c.req.param('id')
+  if (user.role !== 'admin' && user.companyId !== parseInt(id)) {
+    return c.json({ error: 'Forbidden' }, 403)
+  }
+  const { DB } = c.env
   const body = await c.req.json()
 
   try {
@@ -124,9 +293,13 @@ app.put('/api/companies/:id', async (c) => {
 })
 
 // セッション一覧取得
-app.get('/api/sessions/:companyId', async (c) => {
-  const { DB } = c.env
+app.get('/api/sessions/:companyId', requireAuth, async (c) => {
+  const user = c.get('user')
   const companyId = c.req.param('companyId')
+  if (user.role !== 'admin' && user.companyId !== parseInt(companyId)) {
+    return c.json({ error: 'Forbidden' }, 403)
+  }
+  const { DB } = c.env
 
   try {
     const sessions = await DB.prepare(`
@@ -140,9 +313,13 @@ app.get('/api/sessions/:companyId', async (c) => {
 })
 
 // セッション詳細取得
-app.get('/api/sessions/:companyId/:sessionNumber', async (c) => {
-  const { DB } = c.env
+app.get('/api/sessions/:companyId/:sessionNumber', requireAuth, async (c) => {
+  const user = c.get('user')
   const companyId = c.req.param('companyId')
+  if (user.role !== 'admin' && user.companyId !== parseInt(companyId)) {
+    return c.json({ error: 'Forbidden' }, 403)
+  }
+  const { DB } = c.env
   const sessionNumber = c.req.param('sessionNumber')
 
   try {
@@ -161,9 +338,13 @@ app.get('/api/sessions/:companyId/:sessionNumber', async (c) => {
 })
 
 // セッション更新
-app.put('/api/sessions/:companyId/:sessionNumber', async (c) => {
-  const { DB } = c.env
+app.put('/api/sessions/:companyId/:sessionNumber', requireAuth, async (c) => {
+  const user = c.get('user')
   const companyId = c.req.param('companyId')
+  if (user.role !== 'admin' && user.companyId !== parseInt(companyId)) {
+    return c.json({ error: 'Forbidden' }, 403)
+  }
+  const { DB } = c.env
   const sessionNumber = c.req.param('sessionNumber')
   const body = await c.req.json()
 
@@ -187,9 +368,13 @@ app.put('/api/sessions/:companyId/:sessionNumber', async (c) => {
 })
 
 // システム一覧取得
-app.get('/api/systems/:companyId', async (c) => {
-  const { DB } = c.env
+app.get('/api/systems/:companyId', requireAuth, async (c) => {
+  const user = c.get('user')
   const companyId = c.req.param('companyId')
+  if (user.role !== 'admin' && user.companyId !== parseInt(companyId)) {
+    return c.json({ error: 'Forbidden' }, 403)
+  }
+  const { DB } = c.env
 
   try {
     const systems = await DB.prepare(`
@@ -203,9 +388,13 @@ app.get('/api/systems/:companyId', async (c) => {
 })
 
 // システム詳細取得
-app.get('/api/systems/:companyId/:systemNumber', async (c) => {
-  const { DB } = c.env
+app.get('/api/systems/:companyId/:systemNumber', requireAuth, async (c) => {
+  const user = c.get('user')
   const companyId = c.req.param('companyId')
+  if (user.role !== 'admin' && user.companyId !== parseInt(companyId)) {
+    return c.json({ error: 'Forbidden' }, 403)
+  }
+  const { DB } = c.env
   const systemNumber = c.req.param('systemNumber')
 
   try {
@@ -232,9 +421,13 @@ app.get('/api/systems/:companyId/:systemNumber', async (c) => {
 })
 
 // システム追加
-app.post('/api/systems/:companyId', async (c) => {
-  const { DB } = c.env
+app.post('/api/systems/:companyId', requireAuth, async (c) => {
+  const user = c.get('user')
   const companyId = c.req.param('companyId')
+  if (user.role !== 'admin' && user.companyId !== parseInt(companyId)) {
+    return c.json({ error: 'Forbidden' }, 403)
+  }
+  const { DB } = c.env
   const body = await c.req.json()
 
   try {
@@ -264,9 +457,13 @@ app.post('/api/systems/:companyId', async (c) => {
 })
 
 // システム更新
-app.put('/api/systems/:companyId/:systemNumber', async (c) => {
-  const { DB } = c.env
+app.put('/api/systems/:companyId/:systemNumber', requireAuth, async (c) => {
+  const user = c.get('user')
   const companyId = c.req.param('companyId')
+  if (user.role !== 'admin' && user.companyId !== parseInt(companyId)) {
+    return c.json({ error: 'Forbidden' }, 403)
+  }
+  const { DB } = c.env
   const systemNumber = c.req.param('systemNumber')
   const body = await c.req.json()
 
@@ -290,9 +487,13 @@ app.put('/api/systems/:companyId/:systemNumber', async (c) => {
 })
 
 // システム削除
-app.delete('/api/systems/:companyId/:systemNumber', async (c) => {
-  const { DB } = c.env
+app.delete('/api/systems/:companyId/:systemNumber', requireAuth, async (c) => {
+  const user = c.get('user')
   const companyId = c.req.param('companyId')
+  if (user.role !== 'admin' && user.companyId !== parseInt(companyId)) {
+    return c.json({ error: 'Forbidden' }, 403)
+  }
+  const { DB } = c.env
   const systemNumber = c.req.param('systemNumber')
 
   try {
@@ -307,9 +508,13 @@ app.delete('/api/systems/:companyId/:systemNumber', async (c) => {
 })
 
 // 効果測定データ取得
-app.get('/api/measurements/:companyId', async (c) => {
-  const { DB } = c.env
+app.get('/api/measurements/:companyId', requireAuth, async (c) => {
+  const user = c.get('user')
   const companyId = c.req.param('companyId')
+  if (user.role !== 'admin' && user.companyId !== parseInt(companyId)) {
+    return c.json({ error: 'Forbidden' }, 403)
+  }
+  const { DB } = c.env
 
   try {
     // システム別の効果集計
@@ -365,9 +570,13 @@ app.get('/api/measurements/:companyId', async (c) => {
 })
 
 // 効果測定データ追加
-app.post('/api/measurements/:companyId', async (c) => {
-  const { DB } = c.env
+app.post('/api/measurements/:companyId', requireAuth, async (c) => {
+  const user = c.get('user')
   const companyId = c.req.param('companyId')
+  if (user.role !== 'admin' && user.companyId !== parseInt(companyId)) {
+    return c.json({ error: 'Forbidden' }, 403)
+  }
+  const { DB } = c.env
   const body = await c.req.json()
 
   try {
