@@ -10,6 +10,8 @@ import {
   verifyPassword,
   cleanupExpiredSessions 
 } from './auth'
+import { loggerMiddleware } from './logger'
+import adminRoutes from './admin-routes'
 
 type Bindings = {
   DB: D1Database
@@ -22,6 +24,9 @@ app.use('/api/*', cors({
   origin: '*',
   credentials: true
 }))
+
+// ロガーミドルウェア（全APIリクエストをログ記録）
+app.use('/api/*', loggerMiddleware())
 
 // 静的ファイル配信
 app.use('/static/*', serveStatic({ root: './' }))
@@ -449,6 +454,13 @@ app.post('/api/systems/:companyId', requireAuth, async (c) => {
       body.project_memo || ''
     ).run()
 
+    // ログ記録
+    await logActivity(DB, user.id, user.companyId, 'create', 'system', result.meta.last_row_id, {
+      name: body.name,
+      company_id: companyId,
+      system_number: nextNumber
+    }, c.req.raw)
+
     return c.json({ success: true, id: result.meta.last_row_id, system_number: nextNumber })
   } catch (error) {
     console.error('Failed to create system:', error)
@@ -468,6 +480,11 @@ app.put('/api/systems/:companyId/:systemNumber', requireAuth, async (c) => {
   const body = await c.req.json()
 
   try {
+    // システム情報を取得
+    const system = await DB.prepare(`
+      SELECT * FROM systems WHERE company_id = ? AND system_number = ?
+    `).bind(companyId, systemNumber).first() as any
+
     await DB.prepare(`
       UPDATE systems SET 
         name = ?, purpose = ?, ai_tools = ?, status = ?,
@@ -480,13 +497,20 @@ app.put('/api/systems/:companyId/:systemNumber', requireAuth, async (c) => {
       companyId, systemNumber
     ).run()
 
+    // ログ記録
+    await logActivity(DB, user.id, user.companyId, 'update', 'system', system?.id, {
+      name: body.name,
+      company_id: companyId,
+      system_number: systemNumber
+    }, c.req.raw)
+
     return c.json({ success: true })
   } catch (error) {
     return c.json({ error: 'Failed to update system' }, 500)
   }
 })
 
-// システム削除
+// システム削除（ソフトデリート対応）
 app.delete('/api/systems/:companyId/:systemNumber', requireAuth, async (c) => {
   const user = c.get('user')
   const companyId = c.req.param('companyId')
@@ -497,12 +521,50 @@ app.delete('/api/systems/:companyId/:systemNumber', requireAuth, async (c) => {
   const systemNumber = c.req.param('systemNumber')
 
   try {
+    // システム情報を取得
+    const system = await DB.prepare(`
+      SELECT * FROM systems WHERE company_id = ? AND system_number = ?
+    `).bind(companyId, systemNumber).first() as any
+
+    if (!system) {
+      return c.json({ error: 'System not found' }, 404)
+    }
+
+    // 削除前にバックアップ（ソフトデリート）
+    await DB.prepare(`
+      INSERT INTO deleted_systems (
+        original_id, company_id, name, description, 
+        implementation_form, vendor_package, development_language,
+        infrastructure, db_type, created_at, deleted_by
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      system.system_number,
+      system.company_id,
+      system.name,
+      system.description,
+      system.implementation_form,
+      system.vendor_package,
+      system.development_language,
+      system.infrastructure,
+      system.db_type,
+      system.created_at,
+      user.id
+    ).run()
+
+    // 実際の削除
     await DB.prepare(`
       DELETE FROM systems WHERE company_id = ? AND system_number = ?
     `).bind(companyId, systemNumber).run()
 
+    // ログ記録
+    await logActivity(DB, user.id, user.companyId, 'delete', 'system', system.id, {
+      name: system.name,
+      system_number: systemNumber
+    }, c.req.raw)
+
     return c.json({ success: true })
   } catch (error) {
+    console.error('Failed to delete system:', error)
     return c.json({ error: 'Failed to delete system' }, 500)
   }
 })
@@ -723,6 +785,113 @@ app.get('/api/admin/companies', requireAuth, requireAdmin, async (c) => {
     return c.json({ error: 'Failed to fetch companies' }, 500)
   }
 })
+
+// ============================
+// 拡張管理者機能API（admin-api.tsからインポート）
+// ============================
+
+import {
+  getAllCompanies,
+  createCompany,
+  deleteCompany,
+  toggleCompanyStatus,
+  getActivityLogs,
+  getAdminStats,
+  getActiveSessions,
+  revokeSession,
+  exportData,
+  importUsers,
+  getNotifications,
+  createNotification,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+  getBackups,
+  createBackupRecord,
+  getDeletedSystems,
+  restoreSystem,
+  logActivity
+} from './admin-api'
+
+// 企業管理API
+app.get('/api/admin/companies/all', requireAuth, requireAdmin, getAllCompanies)
+app.post('/api/admin/companies/create', requireAuth, requireAdmin, createCompany)
+app.delete('/api/admin/companies/:id', requireAuth, requireAdmin, deleteCompany)
+app.patch('/api/admin/companies/:id/status', requireAuth, requireAdmin, toggleCompanyStatus)
+
+// 活動ログAPI
+app.get('/api/admin/logs', requireAuth, requireAdmin, getActivityLogs)
+
+// 統計ダッシュボードAPI
+app.get('/api/admin/stats', requireAuth, requireAdmin, getAdminStats)
+
+// セッション管理API
+app.get('/api/admin/sessions', requireAuth, requireAdmin, getActiveSessions)
+app.delete('/api/admin/sessions/:sessionId', requireAuth, requireAdmin, revokeSession)
+
+// データエクスポートAPI
+app.post('/api/admin/export', requireAuth, requireAdmin, exportData)
+
+// 一括インポートAPI
+app.post('/api/admin/import/users', requireAuth, requireAdmin, importUsers)
+
+// 通知API
+app.get('/api/notifications', requireAuth, getNotifications)
+app.post('/api/admin/notifications', requireAuth, requireAdmin, createNotification)
+app.patch('/api/notifications/:id/read', requireAuth, markNotificationAsRead)
+app.patch('/api/notifications/read-all', requireAuth, markAllNotificationsAsRead)
+
+// バックアップ・復元API
+app.get('/api/admin/backups', requireAuth, requireAdmin, getBackups)
+app.post('/api/admin/backups', requireAuth, requireAdmin, createBackupRecord)
+app.get('/api/admin/deleted-systems', requireAuth, requireAdmin, getDeletedSystems)
+app.post('/api/admin/restore-system/:id', requireAuth, requireAdmin, restoreSystem)
+
+// 既存のAPIに活動ログを追加するためのミドルウェアを適用
+// ログインは既に実装済み
+
+// 企業更新にログ追加
+const originalCompanyPut = app.put
+app.put('/api/companies/:id', requireAuth, async (c) => {
+  const user = c.get('user')
+  const id = c.req.param('id')
+  if (user.role !== 'admin' && user.companyId !== parseInt(id)) {
+    return c.json({ error: 'Forbidden' }, 403)
+  }
+  const { DB } = c.env
+  const body = await c.req.json()
+
+  try {
+    await DB.prepare(`
+      UPDATE companies SET 
+        name = ?, industry = ?, employee_count = ?, revenue = ?,
+        ai_level = ?, main_challenges = ?, contact_name = ?,
+        contact_position = ?, contact_email = ?, contact_phone = ?,
+        updated_at = datetime('now')
+      WHERE id = ?
+    `).bind(
+      body.name, body.industry, body.employee_count, body.revenue,
+      body.ai_level, body.main_challenges, body.contact_name,
+      body.contact_position, body.contact_email, body.contact_phone, id
+    ).run()
+
+    // ログ記録
+    await logActivity(DB, user.id, user.companyId, 'update', 'company', parseInt(id), {
+      name: body.name
+    }, c.req.raw)
+
+    return c.json({ success: true })
+  } catch (error) {
+    return c.json({ error: 'Failed to update company' }, 500)
+  }
+})
+
+// ============================
+// 管理者専用ルート（マウント）
+// ============================
+
+// 管理者専用の高度な機能を別ルートでマウント
+app.use('/api/admin/*', requireAuth, requireAdmin)
+app.route('/api/admin', adminRoutes)
 
 // ============================
 // Frontend Routes

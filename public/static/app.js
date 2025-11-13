@@ -187,6 +187,21 @@ async function navigateTo(view) {
     case 'users':
       await loadUsers();
       break;
+    case 'admin-dashboard':
+      await loadAdminDashboard();
+      break;
+    case 'admin-companies':
+      await loadAdminCompanies();
+      break;
+    case 'admin-logs':
+      await loadAdminLogs();
+      break;
+    case 'admin-sessions':
+      await loadAdminSessions();
+      break;
+    case 'admin-settings':
+      await loadAdminSettings();
+      break;
     default:
       await loadDashboard();
   }
@@ -230,9 +245,29 @@ function renderSidebar() {
         <div class="px-4 py-2 mt-4 border-t border-gray-200">
           <div class="text-xs text-gray-500 mb-2">管理者メニュー</div>
         </div>
+        <a href="#admin-dashboard">
+          <i class="fas fa-tachometer-alt"></i>
+          <span>管理者ダッシュボード</span>
+        </a>
+        <a href="#admin-companies">
+          <i class="fas fa-building"></i>
+          <span>企業管理</span>
+        </a>
         <a href="#users">
           <i class="fas fa-users-cog"></i>
           <span>ユーザー管理</span>
+        </a>
+        <a href="#admin-logs">
+          <i class="fas fa-history"></i>
+          <span>活動ログ</span>
+        </a>
+        <a href="#admin-sessions">
+          <i class="fas fa-user-clock"></i>
+          <span>セッション管理</span>
+        </a>
+        <a href="#admin-settings">
+          <i class="fas fa-cog"></i>
+          <span>システム設定</span>
         </a>
         ` : ''}
       </nav>
@@ -1628,4 +1663,708 @@ async function deleteUser(userId, username) {
     console.error('Failed to delete user:', error);
     alert('ユーザーの削除に失敗しました');
   }
+}
+
+// ============================
+// 管理者ダッシュボード
+// ============================
+
+async function loadAdminDashboard() {
+  if (currentUser?.role !== 'admin') {
+    showError('管理者権限が必要です');
+    return;
+  }
+  
+  try {
+    const response = await axios.get('/api/admin/statistics');
+    renderAdminDashboard(response.data);
+  } catch (error) {
+    console.error('Failed to load admin dashboard:', error);
+    showError('統計情報の読み込みに失敗しました');
+  }
+}
+
+function renderAdminDashboard(stats) {
+  const html = `
+    <div class="p-6 max-w-7xl mx-auto">
+      <div class="mb-6">
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">
+          <i class="fas fa-tachometer-alt mr-3"></i>管理者ダッシュボード
+        </h1>
+        <p class="text-gray-600">システム全体の統計情報と活動状況</p>
+      </div>
+
+      <!-- サマリーカード -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div class="card bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-sm text-blue-600 mb-1">企業数</div>
+              <div class="text-3xl font-bold text-blue-900">${stats.companyStats.active_companies || 0}</div>
+              <div class="text-xs text-blue-600 mt-1">/ 全${stats.companyStats.total_companies || 0}社</div>
+            </div>
+            <div class="bg-blue-500 text-white p-4 rounded-full">
+              <i class="fas fa-building text-2xl"></i>
+            </div>
+          </div>
+        </div>
+
+        <div class="card bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-sm text-green-600 mb-1">ユーザー数</div>
+              <div class="text-3xl font-bold text-green-900">${stats.userStats.active_users || 0}</div>
+              <div class="text-xs text-green-600 mt-1">/ 全${stats.userStats.total_users || 0}人</div>
+            </div>
+            <div class="bg-green-500 text-white p-4 rounded-full">
+              <i class="fas fa-users text-2xl"></i>
+            </div>
+          </div>
+        </div>
+
+        <div class="card bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-sm text-purple-600 mb-1">システム数</div>
+              <div class="text-3xl font-bold text-purple-900">${stats.systemStats.total_systems || 0}</div>
+              <div class="text-xs text-purple-600 mt-1">課題${stats.assignmentStats.total_assignments || 0}件</div>
+            </div>
+            <div class="bg-purple-500 text-white p-4 rounded-full">
+              <i class="fas fa-project-diagram text-2xl"></i>
+            </div>
+          </div>
+        </div>
+
+        <div class="card bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-sm text-orange-600 mb-1">契約総額</div>
+              <div class="text-3xl font-bold text-orange-900">${formatNumber(stats.companyStats.total_contract_value || 0)}</div>
+              <div class="text-xs text-orange-600 mt-1">円</div>
+            </div>
+            <div class="bg-orange-500 text-white p-4 rounded-full">
+              <i class="fas fa-yen-sign text-2xl"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 最近の活動 -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="card">
+          <h2 class="text-xl font-bold text-gray-900 mb-4">
+            <i class="fas fa-chart-line mr-2 text-blue-600"></i>最近7日間の活動
+          </h2>
+          <div class="space-y-3">
+            ${stats.recentActivity.length > 0 ? stats.recentActivity.map(day => `
+              <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div class="text-sm text-gray-700">${formatDate(day.date)}</div>
+                <div class="font-bold text-blue-600">${day.activity_count}件</div>
+              </div>
+            `).join('') : '<p class="text-gray-500 text-sm">データなし</p>'}
+          </div>
+        </div>
+
+        <div class="card">
+          <h2 class="text-xl font-bold text-gray-900 mb-4">
+            <i class="fas fa-trophy mr-2 text-yellow-600"></i>企業別システム数ランキング
+          </h2>
+          <div class="space-y-3">
+            ${stats.companyRanking.length > 0 ? stats.companyRanking.slice(0, 5).map((company, index) => `
+              <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold">
+                    ${index + 1}
+                  </div>
+                  <div class="text-sm text-gray-900">${company.name}</div>
+                </div>
+                <div class="text-right">
+                  <div class="font-bold text-blue-600">${company.system_count}件</div>
+                  <div class="text-xs text-gray-500">${formatNumber(company.total_cost_reduction || 0)}万円削減</div>
+                </div>
+              </div>
+            `).join('') : '<p class="text-gray-500 text-sm">データなし</p>'}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('main-content').innerHTML = html;
+}
+
+// ============================
+// 企業管理
+// ============================
+
+async function loadAdminCompanies() {
+  if (currentUser?.role !== 'admin') {
+    showError('管理者権限が必要です');
+    return;
+  }
+  
+  try {
+    const response = await axios.get('/api/admin/companies');
+    renderAdminCompanies(response.data);
+  } catch (error) {
+    console.error('Failed to load companies:', error);
+    showError('企業情報の読み込みに失敗しました');
+  }
+}
+
+function renderAdminCompanies(companies) {
+  const html = `
+    <div class="p-6 max-w-7xl mx-auto">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h1 class="text-3xl font-bold text-gray-900 mb-2">
+            <i class="fas fa-building mr-3"></i>企業管理
+          </h1>
+          <p class="text-gray-600">企業情報の管理と操作</p>
+        </div>
+        <button onclick="openCompanyModal()" class="btn btn-primary">
+          <i class="fas fa-plus mr-2"></i>新規企業追加
+        </button>
+      </div>
+
+      <div class="card">
+        <div class="overflow-x-auto">
+          <table class="w-full">
+            <thead>
+              <tr class="bg-gray-50 border-b border-gray-200">
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">企業名</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">業種</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">従業員数</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ユーザー数</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">システム数</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">契約金額</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">状態</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">操作</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+              ${companies.map(company => `
+                <tr class="hover:bg-gray-50">
+                  <td class="px-6 py-4">
+                    <div class="font-semibold text-gray-900">${company.name}</div>
+                    <div class="text-xs text-gray-500">${company.contact_name || '-'}</div>
+                  </td>
+                  <td class="px-6 py-4 text-sm text-gray-700">${company.industry || '-'}</td>
+                  <td class="px-6 py-4 text-sm text-gray-700">${company.employee_count || '-'}人</td>
+                  <td class="px-6 py-4 text-sm text-gray-700">${company.user_count || 0}人</td>
+                  <td class="px-6 py-4 text-sm text-gray-700">${company.system_count || 0}件</td>
+                  <td class="px-6 py-4 text-sm text-gray-700">${formatNumber(company.contract_amount || 0)}円</td>
+                  <td class="px-6 py-4">
+                    <span class="px-2 py-1 rounded-full text-xs font-medium ${
+                      company.is_active === 1 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-red-100 text-red-800'
+                    }">
+                      ${company.is_active === 1 ? '有効' : '無効'}
+                    </span>
+                  </td>
+                  <td class="px-6 py-4">
+                    <div class="flex gap-2">
+                      <button 
+                        onclick="toggleCompanyStatus(${company.id}, '${company.name}', ${company.is_active})"
+                        class="text-sm text-blue-600 hover:text-blue-800"
+                        title="${company.is_active === 1 ? '無効化' : '有効化'}">
+                        <i class="fas fa-${company.is_active === 1 ? 'ban' : 'check'}"></i>
+                      </button>
+                      <button 
+                        onclick="deleteCompany(${company.id}, '${company.name}')"
+                        class="text-sm text-red-600 hover:text-red-800"
+                        title="削除">
+                        <i class="fas fa-trash"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 企業追加モーダル -->
+    <div id="companyModal" class="modal hidden">
+      <div class="modal-content">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-2xl font-bold text-gray-900">新規企業追加</h2>
+          <button onclick="closeCompanyModal()" class="text-gray-400 hover:text-gray-600">
+            <i class="fas fa-times text-2xl"></i>
+          </button>
+        </div>
+        
+        <form id="companyForm" onsubmit="saveCompany(event)" class="space-y-4">
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">企業名 *</label>
+              <input type="text" id="companyName" required class="input" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">業種</label>
+              <input type="text" id="companyIndustry" class="input" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">従業員数</label>
+              <input type="number" id="companyEmployeeCount" class="input" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">売上高（億円）</label>
+              <input type="number" id="companyRevenue" step="0.1" class="input" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">契約金額（円）</label>
+              <input type="number" id="companyContractAmount" class="input" value="4000000" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">支払い状況</label>
+              <select id="companyPaymentStatus" class="input">
+                <option value="unpaid">未払い</option>
+                <option value="paid">支払い済み</option>
+                <option value="partial">一部支払い</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="flex gap-3 pt-4 border-t">
+            <button type="submit" class="btn btn-primary flex-1">
+              <i class="fas fa-save mr-2"></i>保存
+            </button>
+            <button type="button" onclick="closeCompanyModal()" class="btn btn-secondary flex-1">
+              キャンセル
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('main-content').innerHTML = html;
+}
+
+function openCompanyModal() {
+  document.getElementById('companyModal').classList.remove('hidden');
+}
+
+function closeCompanyModal() {
+  document.getElementById('companyModal').classList.add('hidden');
+  document.getElementById('companyForm').reset();
+}
+
+async function saveCompany(event) {
+  event.preventDefault();
+  
+  const data = {
+    name: document.getElementById('companyName').value,
+    industry: document.getElementById('companyIndustry').value,
+    employee_count: parseInt(document.getElementById('companyEmployeeCount').value) || null,
+    revenue: parseFloat(document.getElementById('companyRevenue').value) || null,
+    contract_amount: parseInt(document.getElementById('companyContractAmount').value) || 0,
+    payment_status: document.getElementById('companyPaymentStatus').value
+  };
+  
+  try {
+    await axios.post('/api/admin/companies', data);
+    alert('新しい企業を追加しました');
+    closeCompanyModal();
+    await loadAdminCompanies();
+  } catch (error) {
+    console.error('Failed to save company:', error);
+    alert('企業の保存に失敗しました');
+  }
+}
+
+async function toggleCompanyStatus(companyId, companyName, currentStatus) {
+  const action = currentStatus === 1 ? '無効化' : '有効化';
+  if (!confirm(`企業「${companyName}」を${action}してもよろしいですか？`)) {
+    return;
+  }
+  
+  try {
+    await axios.patch(`/api/admin/companies/${companyId}/toggle-active`);
+    alert(`企業を${action}しました`);
+    await loadAdminCompanies();
+  } catch (error) {
+    console.error('Failed to toggle company status:', error);
+    alert('企業の状態変更に失敗しました');
+  }
+}
+
+async function deleteCompany(companyId, companyName) {
+  if (!confirm(`企業「${companyName}」を削除してもよろしいですか？\n関連するユーザーとデータも削除されます。\nこの操作は取り消せません。`)) {
+    return;
+  }
+  
+  try {
+    await axios.delete(`/api/admin/companies/${companyId}`);
+    alert('企業を削除しました');
+    await loadAdminCompanies();
+  } catch (error) {
+    console.error('Failed to delete company:', error);
+    alert('企業の削除に失敗しました');
+  }
+}
+
+// ============================
+// 活動ログ
+// ============================
+
+async function loadAdminLogs() {
+  if (currentUser?.role !== 'admin') {
+    showError('管理者権限が必要です');
+    return;
+  }
+  
+  try {
+    const response = await axios.get('/api/admin/activity-logs?limit=100');
+    renderAdminLogs(response.data);
+  } catch (error) {
+    console.error('Failed to load logs:', error);
+    showError('ログの読み込みに失敗しました');
+  }
+}
+
+function renderAdminLogs(data) {
+  const html = `
+    <div class="p-6 max-w-7xl mx-auto">
+      <div class="mb-6">
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">
+          <i class="fas fa-history mr-3"></i>活動ログ
+        </h1>
+        <p class="text-gray-600">システム内の全ユーザー活動履歴</p>
+      </div>
+
+      <div class="card">
+        <div class="overflow-x-auto">
+          <table class="w-full">
+            <thead>
+              <tr class="bg-gray-50 border-b border-gray-200">
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">日時</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ユーザー</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">企業</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">アクション</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">リソース</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">IPアドレス</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+              ${data.logs.map(log => `
+                <tr class="hover:bg-gray-50">
+                  <td class="px-6 py-4 text-sm text-gray-700 whitespace-nowrap">${formatDateTime(log.created_at)}</td>
+                  <td class="px-6 py-4 text-sm text-gray-900">${log.username || '-'}</td>
+                  <td class="px-6 py-4 text-sm text-gray-700">${log.company_name || '-'}</td>
+                  <td class="px-6 py-4 text-sm font-mono text-blue-600">${log.action}</td>
+                  <td class="px-6 py-4 text-sm text-gray-700">${log.resource_type} #${log.resource_id || '-'}</td>
+                  <td class="px-6 py-4 text-sm text-gray-500">${log.ip_address || '-'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+        <div class="px-6 py-4 bg-gray-50 border-t border-gray-200">
+          <div class="text-sm text-gray-600">
+            表示: ${data.logs.length}件 / 全${data.total}件
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('main-content').innerHTML = html;
+}
+
+// ============================
+// セッション管理
+// ============================
+
+async function loadAdminSessions() {
+  if (currentUser?.role !== 'admin') {
+    showError('管理者権限が必要です');
+    return;
+  }
+  
+  try {
+    const response = await axios.get('/api/admin/sessions/active');
+    renderAdminSessions(response.data);
+  } catch (error) {
+    console.error('Failed to load sessions:', error);
+    showError('セッション情報の読み込みに失敗しました');
+  }
+}
+
+function renderAdminSessions(sessions) {
+  const html = `
+    <div class="p-6 max-w-7xl mx-auto">
+      <div class="mb-6">
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">
+          <i class="fas fa-user-clock mr-3"></i>アクティブセッション管理
+        </h1>
+        <p class="text-gray-600">現在ログイン中のユーザーセッション</p>
+      </div>
+
+      <div class="card">
+        <div class="overflow-x-auto">
+          <table class="w-full">
+            <thead>
+              <tr class="bg-gray-50 border-b border-gray-200">
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ユーザー</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">企業</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ロール</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">作成日時</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">有効期限</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">操作</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+              ${sessions.map(session => `
+                <tr class="hover:bg-gray-50">
+                  <td class="px-6 py-4">
+                    <div class="font-semibold text-gray-900">${session.username}</div>
+                    <div class="text-xs text-gray-500">ID: ${session.user_id}</div>
+                  </td>
+                  <td class="px-6 py-4 text-sm text-gray-700">${session.company_name || '-'}</td>
+                  <td class="px-6 py-4">
+                    <span class="px-2 py-1 rounded-full text-xs font-medium ${
+                      session.role === 'admin' 
+                        ? 'bg-purple-100 text-purple-800' 
+                        : 'bg-blue-100 text-blue-800'
+                    }">
+                      ${session.role === 'admin' ? '管理者' : 'ユーザー'}
+                    </span>
+                  </td>
+                  <td class="px-6 py-4 text-sm text-gray-700 whitespace-nowrap">${formatDateTime(session.created_at)}</td>
+                  <td class="px-6 py-4 text-sm text-gray-700 whitespace-nowrap">${formatDateTime(session.expires_at)}</td>
+                  <td class="px-6 py-4">
+                    <button 
+                      onclick="forceLogout('${session.id}', '${session.username}')"
+                      class="text-sm text-red-600 hover:text-red-800"
+                      title="強制ログアウト">
+                      <i class="fas fa-sign-out-alt mr-1"></i>ログアウト
+                    </button>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+        <div class="px-6 py-4 bg-gray-50 border-t border-gray-200">
+          <div class="text-sm text-gray-600">
+            アクティブセッション: ${sessions.length}件
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('main-content').innerHTML = html;
+}
+
+async function forceLogout(sessionId, username) {
+  if (!confirm(`ユーザー「${username}」を強制ログアウトしてもよろしいですか？`)) {
+    return;
+  }
+  
+  try {
+    await axios.delete(`/api/admin/sessions/${sessionId}`);
+    alert('ユーザーを強制ログアウトしました');
+    await loadAdminSessions();
+  } catch (error) {
+    console.error('Failed to force logout:', error);
+    alert('強制ログアウトに失敗しました');
+  }
+}
+
+// ============================
+// システム設定
+// ============================
+
+async function loadAdminSettings() {
+  if (currentUser?.role !== 'admin') {
+    showError('管理者権限が必要です');
+    return;
+  }
+  
+  try {
+    const response = await axios.get('/api/admin/settings');
+    renderAdminSettings(response.data);
+  } catch (error) {
+    console.error('Failed to load settings:', error);
+    showError('設定の読み込みに失敗しました');
+  }
+}
+
+function renderAdminSettings(settings) {
+  const html = `
+    <div class="p-6 max-w-4xl mx-auto">
+      <div class="mb-6">
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">
+          <i class="fas fa-cog mr-3"></i>システム設定
+        </h1>
+        <p class="text-gray-600">システム全体の設定を管理</p>
+      </div>
+
+      <div class="card">
+        <div class="space-y-6">
+          ${settings.map(setting => `
+            <div class="border-b border-gray-200 pb-6 last:border-0 last:pb-0">
+              <div class="flex items-start justify-between mb-2">
+                <div class="flex-1">
+                  <h3 class="font-semibold text-gray-900 mb-1">${setting.key}</h3>
+                  <p class="text-sm text-gray-600">${setting.description || ''}</p>
+                </div>
+                <button 
+                  onclick="editSetting('${setting.key}', '${setting.value}')"
+                  class="text-blue-600 hover:text-blue-800 ml-4">
+                  <i class="fas fa-edit"></i>
+                </button>
+              </div>
+              <div class="mt-2">
+                <span class="px-3 py-1 bg-blue-50 text-blue-800 rounded-md font-mono text-sm">
+                  ${setting.value}
+                </span>
+              </div>
+              ${setting.updated_at ? `
+                <div class="text-xs text-gray-500 mt-2">
+                  最終更新: ${formatDateTime(setting.updated_at)}
+                </div>
+              ` : ''}
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <!-- データエクスポート -->
+      <div class="card mt-6">
+        <h2 class="text-xl font-bold text-gray-900 mb-4">
+          <i class="fas fa-download mr-2 text-blue-600"></i>データエクスポート
+        </h2>
+        <div class="grid grid-cols-3 gap-4">
+          <button onclick="exportData('users')" class="btn btn-secondary">
+            <i class="fas fa-users mr-2"></i>ユーザーデータ
+          </button>
+          <button onclick="exportData('companies')" class="btn btn-secondary">
+            <i class="fas fa-building mr-2"></i>企業データ
+          </button>
+          <button onclick="exportData('systems')" class="btn btn-secondary">
+            <i class="fas fa-project-diagram mr-2"></i>システムデータ
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 設定編集モーダル -->
+    <div id="settingModal" class="modal hidden">
+      <div class="modal-content max-w-md">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-2xl font-bold text-gray-900">設定を編集</h2>
+          <button onclick="closeSettingModal()" class="text-gray-400 hover:text-gray-600">
+            <i class="fas fa-times text-2xl"></i>
+          </button>
+        </div>
+        
+        <form id="settingForm" onsubmit="saveSetting(event)" class="space-y-4">
+          <input type="hidden" id="settingKey" />
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">設定キー</label>
+            <input type="text" id="settingKeyDisplay" disabled class="input bg-gray-100" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">設定値 *</label>
+            <input type="text" id="settingValue" required class="input" />
+          </div>
+          
+          <div class="flex gap-3 pt-4 border-t">
+            <button type="submit" class="btn btn-primary flex-1">
+              <i class="fas fa-save mr-2"></i>保存
+            </button>
+            <button type="button" onclick="closeSettingModal()" class="btn btn-secondary flex-1">
+              キャンセル
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('main-content').innerHTML = html;
+}
+
+function editSetting(key, value) {
+  document.getElementById('settingKey').value = key;
+  document.getElementById('settingKeyDisplay').value = key;
+  document.getElementById('settingValue').value = value;
+  document.getElementById('settingModal').classList.remove('hidden');
+}
+
+function closeSettingModal() {
+  document.getElementById('settingModal').classList.add('hidden');
+  document.getElementById('settingForm').reset();
+}
+
+async function saveSetting(event) {
+  event.preventDefault();
+  
+  const key = document.getElementById('settingKey').value;
+  const value = document.getElementById('settingValue').value;
+  
+  try {
+    await axios.put(`/api/admin/settings/${key}`, { value });
+    alert('設定を更新しました');
+    closeSettingModal();
+    await loadAdminSettings();
+  } catch (error) {
+    console.error('Failed to save setting:', error);
+    alert('設定の保存に失敗しました');
+  }
+}
+
+async function exportData(type) {
+  try {
+    const response = await axios.get(`/api/admin/export/${type}`, {
+      responseType: 'blob'
+    });
+    
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `${type}_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+    
+    alert(`${type}データをエクスポートしました`);
+  } catch (error) {
+    console.error('Failed to export data:', error);
+    alert('データのエクスポートに失敗しました');
+  }
+}
+
+// ============================
+// ヘルパー関数
+// ============================
+
+function formatDateTime(dateString) {
+  if (!dateString) return '-';
+  const date = new Date(dateString);
+  return date.toLocaleString('ja-JP', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
+function formatDate(dateString) {
+  if (!dateString) return '-';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('ja-JP', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  });
 }
