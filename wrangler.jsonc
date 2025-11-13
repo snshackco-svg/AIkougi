@@ -6,11 +6,26 @@
   "compatibility_flags": [
     "nodejs_compat"
   ],
+  
+  // デフォルト環境（開発環境）
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "aikougi-production",
-      "database_id": "cf8e5dad-0a18-45fc-9698-321e1bffb1ff"
+      "database_name": "aikougi-development",
+      "database_id": "7309601f-8a81-49d7-813b-9a0e6fc17030"
     }
-  ]
+  ],
+  
+  // 本番環境の設定
+  "env": {
+    "production": {
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "aikougi-production",
+          "database_id": "cf8e5dad-0a18-45fc-9698-321e1bffb1ff"
+        }
+      ]
+    }
+  }
 }
