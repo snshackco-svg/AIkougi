@@ -337,6 +337,28 @@ function renderDashboard() {
         <p class="text-gray-600">${company.name} - プログラム進捗状況</p>
       </div>
       
+      ${currentUser?.role === 'admin' ? `
+      <div class="mb-6 p-4 bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-200 rounded-lg">
+        <div class="flex items-center">
+          <i class="fas fa-crown text-purple-600 text-2xl mr-3"></i>
+          <div>
+            <div class="font-bold text-purple-900">管理者モード</div>
+            <div class="text-sm text-purple-700">全企業のデータにアクセスできます。サイドバーから「ユーザー管理」で新規ユーザーを追加できます。</div>
+          </div>
+        </div>
+      </div>
+      ` : `
+      <div class="mb-6 p-4 bg-gradient-to-r from-green-50 to-teal-50 border-2 border-green-200 rounded-lg">
+        <div class="flex items-center">
+          <i class="fas fa-user-circle text-green-600 text-2xl mr-3"></i>
+          <div>
+            <div class="font-bold text-green-900">一般ユーザーモード</div>
+            <div class="text-sm text-green-700">自社（${company.name}）のデータのみ表示されています。</div>
+          </div>
+        </div>
+      </div>
+      `}
+      
       <!-- KPI統計 -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div class="stat-card">
@@ -1046,6 +1068,38 @@ function renderCompany(company) {
           </div>
         </div>
       </div>
+      
+      ${currentUser?.role === 'admin' ? `
+      <div class="card mb-6 border-2 border-red-200 bg-red-50">
+        <div class="flex items-center mb-4">
+          <i class="fas fa-lock text-red-600 mr-2"></i>
+          <h2 class="text-xl font-bold text-red-900">管理者専用情報</h2>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <div class="text-sm text-gray-500 mb-1">契約金額</div>
+            <div class="font-semibold text-lg text-red-900">${formatNumber(company.contract_amount || 0)}円</div>
+          </div>
+          <div>
+            <div class="text-sm text-gray-500 mb-1">支払い状況</div>
+            <div>
+              ${company.payment_status === 'paid' 
+                ? '<span class="badge badge-completed">支払済</span>'
+                : company.payment_status === 'pending'
+                ? '<span class="badge badge-scheduled">未払い</span>'
+                : '<span class="badge badge-development">一部支払</span>'
+              }
+            </div>
+          </div>
+        </div>
+        <div class="mt-4 p-3 bg-white rounded border border-red-200">
+          <p class="text-xs text-red-700">
+            <i class="fas fa-info-circle mr-1"></i>
+            この情報は管理者のみ閲覧可能です。一般ユーザーには表示されません。
+          </p>
+        </div>
+      </div>
+      ` : ''}
       
       <div class="card">
         <h2 class="text-xl font-bold mb-4">主要な業務課題</h2>
